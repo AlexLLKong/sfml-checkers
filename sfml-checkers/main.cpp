@@ -35,6 +35,9 @@ int main()
     std::vector<sf::Text*> text;
     CreateText(text, font);
 
+    // black goes first
+    my::Side turn = my::Side::BLACK;
+
     my::Piece* heldPiece = nullptr;
     sf::Vector2i* prevPosition = new sf::Vector2i(0, 0);
     while (window.isOpen())
@@ -52,7 +55,11 @@ int main()
                     int y = ToGridCoordinate(event.mouseButton.y);
                     prevPosition->x = x * SPRITE_LENGTH * SCALE;
                     prevPosition->y = y * SPRITE_LENGTH * SCALE;
-                    heldPiece = GetHeldSprite(pieces, grid, x, y);             
+                    heldPiece = GetHeldSprite(pieces, grid, x, y); 
+                    if (heldPiece != nullptr) {
+                        if(heldPiece->side != turn)  
+                            heldPiece = nullptr;
+                    }
                 }
             }
             else if (event.type == sf::Event::MouseMoved && heldPiece != nullptr)
@@ -81,6 +88,10 @@ int main()
                     grid[ToGridCoordinate(prevPosition->y) * BOARD_LENGTH + ToGridCoordinate(prevPosition->x)] = false;
                     prevPosition->x = 0;
                     prevPosition->y = 0;
+
+                    // change the turn
+                    ToggleTurnUI(uiSprites, textureHolder, turn);
+                    turn = (int)turn ? my::Side::RED : my::Side::BLACK;
                 }
                 heldPiece = nullptr;
             }
@@ -180,6 +191,18 @@ void CreateUI(std::vector<sf::Sprite*>& sprites, my::TextureHolder& textureHolde
     resignButton->setPosition(BOARD_LENGTH * SPRITE_LENGTH * SCALE * 1.155 - resignButton->getGlobalBounds().width/2, 4 * SPRITE_LENGTH * SCALE);
     resignButton->setScale(SCALE, SCALE);
     sprites.push_back(resignButton);
+
+    sf::Sprite* turnBackground = new sf::Sprite();
+    turnBackground->setTexture(*textureHolder.redSquareTexture);
+    turnBackground->setPosition(BOARD_LENGTH * SPRITE_LENGTH * SCALE + 1.5 * SPRITE_LENGTH * SCALE, 2 * SPRITE_LENGTH * SCALE);
+    turnBackground->setScale(SCALE, SCALE);
+    sprites.push_back(turnBackground);
+
+    sf::Sprite* turnPiece = new sf::Sprite();
+    turnPiece->setTexture(*textureHolder.blackPieceTexture);
+    turnPiece->setPosition(BOARD_LENGTH * SPRITE_LENGTH * SCALE + 1.5 * SPRITE_LENGTH * SCALE, 2 * SPRITE_LENGTH * SCALE);
+    turnPiece->setScale(SCALE, SCALE);
+    sprites.push_back(turnPiece);
 }
 
 void CreateText(std::vector<sf::Text*>& text, sf::Font& font)
@@ -211,6 +234,18 @@ my::Piece* GetHeldSprite(std::vector<my::Piece*>& pieces, bool* grid, int x, int
         }
     }
     return nullptr;
+}
+
+void ToggleTurnUI(std::vector<sf::Sprite*>& sprites, my::TextureHolder& textureHolder, my::Side turn)
+{
+    if ((int)turn) // currently black turn
+    {
+        sprites[3]->setTexture(*textureHolder.redPieceTexture);
+    }
+    else // currently red turn
+    {
+        sprites[3]->setTexture(*textureHolder.blackPieceTexture);
+    }
 }
 
 void RenderSprites(std::vector<sf::Sprite*>& sprites, sf::RenderWindow& window)

@@ -12,6 +12,8 @@ void CreateText(std::vector<sf::Text*>& text, sf::Font& font);
 
 my::Piece* GetHeldSprite(std::vector<my::Piece*>& pieces, bool* grid, int x, int y);
 
+void ToggleTurnUI(std::vector<sf::Sprite*>& sprites, my::TextureHolder& textureHolder, my::Side turn);
+
 void RenderSprites(std::vector<sf::Sprite*>& sprites, sf::RenderWindow& window);
 
 void RenderText(std::vector<sf::Text*>& text, sf::RenderWindow& window);

@@ -3,12 +3,19 @@
 
 namespace my{
 
-	enum class Side {
+	enum class Colour {
 		RED,
 		BLACK
 	};
 	struct Piece {
-		sf::Sprite* sprite;
-		Side side;
+		std::shared_ptr<sf::Sprite> Sprite;
+		Colour Side;
+		bool isKing = false;
+		Piece() = delete;
+		Piece(Colour side, std::shared_ptr<sf::Sprite> sprite)
+		{
+			Side = side;
+			Sprite = sprite;
+		}
 	};
 }

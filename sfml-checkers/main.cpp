@@ -20,26 +20,26 @@ int main()
     // setup grid tracker
     bool grid[BOARD_LENGTH * BOARD_LENGTH] = {false};
     // setup board sprites
-    std::vector<sf::Sprite*> boardSprites;
+    std::vector<std::unique_ptr<sf::Sprite>> boardSprites;
     CreateBoard(boardSprites, textureHolder);
     // setup piece sprites
-    std::vector<sf::Sprite*> pieceSprites;
-    std::vector<my::Piece*> pieces;
+    std::vector<std::shared_ptr<sf::Sprite>> pieceSprites;
+    std::vector<std::shared_ptr<my::Piece>> pieces;
     CreatePieces(pieces, textureHolder, grid, pieceSprites);
     // setup ui sprites
-    std::vector<sf::Sprite*> uiSprites;
+    std::vector<std::shared_ptr<sf::Sprite>> uiSprites;
     CreateUI(uiSprites, textureHolder);
     // debug shapes
-    std::vector<sf::CircleShape> shapes;
+    std::vector<std::unique_ptr<sf::CircleShape>> shapes;
     // setup text
-    std::vector<sf::Text*> text;
+    std::vector<std::unique_ptr<sf::Text>> text;
     CreateText(text, font);
 
     // black goes first
-    my::Side turn = my::Side::BLACK;
+    my::Colour turn = my::Colour::BLACK;
 
-    my::Piece* heldPiece = nullptr;
-    sf::Vector2i* prevPosition = new sf::Vector2i(0, 0);
+    std::shared_ptr<my::Piece> heldPiece = nullptr;
+    std::unique_ptr<sf::Vector2i> prevPosition = std::make_unique<sf::Vector2i>(0, 0);
     while (window.isOpen())
     {
         sf::Event event;
@@ -55,9 +55,9 @@ int main()
                     int y = ToGridCoordinate(event.mouseButton.y);
                     prevPosition->x = x * SPRITE_LENGTH * SCALE;
                     prevPosition->y = y * SPRITE_LENGTH * SCALE;
-                    heldPiece = GetHeldSprite(pieces, grid, x, y); 
+                    heldPiece = GetHeldPiece(pieces, grid, x, y); 
                     if (heldPiece != nullptr) {
-                        if(heldPiece->side != turn)  
+                        if(heldPiece->Side != turn)  
                             heldPiece = nullptr;
                     }
                 }
@@ -68,7 +68,7 @@ int main()
                 int y = sf::Mouse::getPosition(window).y;
                 int max = BOARD_LENGTH * SCALE * SPRITE_LENGTH;
                 if(x >= 0 && x <= max && y >= 0 && y <= max)
-                    heldPiece->sprite->setPosition(x - SPRITE_LENGTH/2 * SCALE, y - SPRITE_LENGTH/2 * SCALE);
+                    heldPiece->Sprite->setPosition(x - SPRITE_LENGTH/2 * SCALE, y - SPRITE_LENGTH/2 * SCALE);
             }
             else if (event.type == sf::Event::MouseButtonReleased && heldPiece != nullptr)
             {
@@ -76,14 +76,14 @@ int main()
                 int y = sf::Mouse::getPosition(window).y;
                 int gridX = ToGridCoordinate(x);
                 int gridY = ToGridCoordinate(y);
-                // invalid pos
-                if (!CheckPos(grid, gridX, gridY, heldPiece, prevPosition))
+                // invalid move pos
+                if (!CheckPos(grid, gridX, gridY, heldPiece.get(), prevPosition.get()))
                 {
-                    heldPiece->sprite->setPosition(prevPosition->x, prevPosition->y);
+                    heldPiece->Sprite->setPosition(prevPosition->x, prevPosition->y);
                 }
                 else //valid pos
                 {
-                    heldPiece->sprite->setPosition(gridX * SPRITE_LENGTH * SCALE, gridY * SPRITE_LENGTH * SCALE);
+                    heldPiece->Sprite->setPosition(gridX * SPRITE_LENGTH * SCALE, gridY * SPRITE_LENGTH * SCALE);
                     grid[gridY * BOARD_LENGTH + gridX] = true;
                     grid[ToGridCoordinate(prevPosition->y) * BOARD_LENGTH + ToGridCoordinate(prevPosition->x)] = false;
                     prevPosition->x = 0;
@@ -91,7 +91,7 @@ int main()
 
                     // change the turn
                     ToggleTurnUI(uiSprites, textureHolder, turn);
-                    turn = (int)turn ? my::Side::RED : my::Side::BLACK;
+                    turn = (int)turn ? my::Colour::RED : my::Colour::BLACK;
                 }
                 heldPiece = nullptr;
             }
@@ -108,20 +108,17 @@ int main()
     return 0;
 }
 
-void CreatePieces(std::vector<my::Piece*>& pieces, my::TextureHolder& textureHolder, bool* grid, std::vector<sf::Sprite*>& sprites)
+void CreatePieces(std::vector<std::shared_ptr<my::Piece>>& pieces, my::TextureHolder& textureHolder, bool* grid, std::vector<std::shared_ptr<sf::Sprite>>& sprites)
 {
     int z = 0;
     for (int i = 0; i < BOARD_LENGTH; i++)
     {
         for (int j = z; j < BOARD_LENGTH / 2 - 1; j += 2)
         {
-            my::Piece* piece = new my::Piece();
-            piece->side = my::Side::RED;
-            sf::Sprite* sprite = new sf::Sprite();
-            sprite->setTexture(*textureHolder.redPieceTexture);
+            std::shared_ptr<sf::Sprite> sprite = std::make_shared<sf::Sprite>(*textureHolder.redPieceTexture);
+            std::shared_ptr<my::Piece> piece = std::make_shared<my::Piece>(my::Colour::RED, sprite);
             sprite->setPosition(sf::Vector2f(i * SPRITE_LENGTH * SCALE, j * SPRITE_LENGTH * SCALE));
             sprite->setScale(SCALE, SCALE);
-            piece->sprite = sprite;
             pieces.push_back(piece);
             sprites.push_back(sprite);
             grid[j * BOARD_LENGTH + i] = true;
@@ -133,13 +130,10 @@ void CreatePieces(std::vector<my::Piece*>& pieces, my::TextureHolder& textureHol
     {
         for (int j = z + 5; j < BOARD_LENGTH; j += 2)
         {
-            my::Piece* piece = new my::Piece();
-            piece->side = my::Side::BLACK;
-            sf::Sprite* sprite = new sf::Sprite();
-            sprite->setTexture(*textureHolder.blackPieceTexture);
+            std::shared_ptr<sf::Sprite> sprite = std::make_shared<sf::Sprite>(*textureHolder.blackPieceTexture);
+            std::shared_ptr<my::Piece> piece = std::make_shared<my::Piece>(my::Colour::BLACK, sprite);
             sprite->setPosition(sf::Vector2f(i * SPRITE_LENGTH * SCALE, j * SPRITE_LENGTH * SCALE));
             sprite->setScale(SCALE, SCALE);
-            piece->sprite = sprite;
             pieces.push_back(piece);
             sprites.push_back(sprite);
             grid[j * BOARD_LENGTH + i] = true;
@@ -148,18 +142,17 @@ void CreatePieces(std::vector<my::Piece*>& pieces, my::TextureHolder& textureHol
     }
 }
 
-void CreateBoard(std::vector<sf::Sprite*>& sprites, my::TextureHolder& textureHolder)
+void CreateBoard(std::vector<std::unique_ptr<sf::Sprite>>& sprites, my::TextureHolder& textureHolder)
 {
     int z = 0;
     for (int i = 0; i < BOARD_LENGTH; i++)
     {
         for (int j = z; j < BOARD_LENGTH; j += 2)
         {
-            sf::Sprite* sprite = new sf::Sprite();
-            sprite->setTexture(*textureHolder.redSquareTexture);
+            std::unique_ptr<sf::Sprite> sprite = std::make_unique<sf::Sprite>(*textureHolder.redSquareTexture);
             sprite->setPosition(i * SPRITE_LENGTH * SCALE, j * SPRITE_LENGTH * SCALE);
             sprite->setScale(SCALE, SCALE);
-            sprites.push_back(sprite);
+            sprites.push_back(std::move(sprite));
         }
         z ^= 1;
     }
@@ -168,75 +161,70 @@ void CreateBoard(std::vector<sf::Sprite*>& sprites, my::TextureHolder& textureHo
     {
         for (int j = z; j < BOARD_LENGTH; j += 2)
         {
-            sf::Sprite* sprite = new sf::Sprite();
-            sprite->setTexture(*textureHolder.blackSquareTexture);
-            sprite->setPosition(sf::Vector2f(i * SPRITE_LENGTH * SCALE, j * SPRITE_LENGTH * SCALE));
+            std::unique_ptr<sf::Sprite> sprite = std::make_unique<sf::Sprite>(*textureHolder.blackSquareTexture);
+            sprite->setPosition(i * SPRITE_LENGTH * SCALE, j * SPRITE_LENGTH * SCALE);
             sprite->setScale(SCALE, SCALE);
-            sprites.push_back(sprite);
+            sprites.push_back(std::move(sprite));
         }
         z ^= 1;
     }
 }
 
-void CreateUI(std::vector<sf::Sprite*>& sprites, my::TextureHolder& textureHolder)
+void CreateUI(std::vector<std::shared_ptr<sf::Sprite>>& sprites, my::TextureHolder& textureHolder)
 {
-    sf::Sprite* uiBackground = new sf::Sprite();
-    uiBackground->setTexture(*textureHolder.uiBackgroundTexture);
-    uiBackground->setPosition(sf::Vector2f(BOARD_LENGTH * SPRITE_LENGTH * SCALE, 0));
-    uiBackground->setScale(SCALE, SCALE);
-    sprites.push_back(uiBackground);
+    std::shared_ptr<sf::Sprite> sprite = std::make_shared<sf::Sprite>(*textureHolder.uiBackgroundTexture);
+    sprite->setPosition(sf::Vector2f(BOARD_LENGTH * SPRITE_LENGTH * SCALE, 0));
+    sprite->setScale(SCALE, SCALE);
+    sprites.push_back(sprite);
 
-    sf::Sprite* resignButton = new sf::Sprite();
-    resignButton->setTexture(*textureHolder.resignButtonTexture);
-    resignButton->setPosition(BOARD_LENGTH * SPRITE_LENGTH * SCALE * 1.155 - resignButton->getGlobalBounds().width/2, 4 * SPRITE_LENGTH * SCALE);
-    resignButton->setScale(SCALE, SCALE);
-    sprites.push_back(resignButton);
+    sprite = std::make_shared<sf::Sprite>(*textureHolder.resignButtonTexture);
+    sprite->setPosition(BOARD_LENGTH * SPRITE_LENGTH * SCALE * 1.155 - sprite->getGlobalBounds().width/2, 4 * SPRITE_LENGTH * SCALE);
+    sprite->setScale(SCALE, SCALE);
+    sprites.push_back(sprite);
 
-    sf::Sprite* turnBackground = new sf::Sprite();
-    turnBackground->setTexture(*textureHolder.redSquareTexture);
-    turnBackground->setPosition(BOARD_LENGTH * SPRITE_LENGTH * SCALE + 1.5 * SPRITE_LENGTH * SCALE, 2 * SPRITE_LENGTH * SCALE);
-    turnBackground->setScale(SCALE, SCALE);
-    sprites.push_back(turnBackground);
+    sprite = std::make_shared<sf::Sprite>(*textureHolder.redSquareTexture);
+    sprite->setPosition(BOARD_LENGTH * SPRITE_LENGTH * SCALE + 1.5 * SPRITE_LENGTH * SCALE, 2 * SPRITE_LENGTH * SCALE);
+    sprite->setScale(SCALE, SCALE);
+    sprites.push_back(sprite);
 
-    sf::Sprite* turnPiece = new sf::Sprite();
-    turnPiece->setTexture(*textureHolder.blackPieceTexture);
-    turnPiece->setPosition(BOARD_LENGTH * SPRITE_LENGTH * SCALE + 1.5 * SPRITE_LENGTH * SCALE, 2 * SPRITE_LENGTH * SCALE);
-    turnPiece->setScale(SCALE, SCALE);
-    sprites.push_back(turnPiece);
+    sprite = std::make_shared<sf::Sprite>(*textureHolder.blackPieceTexture);
+    sprite->setPosition(BOARD_LENGTH * SPRITE_LENGTH * SCALE + 1.5 * SPRITE_LENGTH * SCALE, 2 * SPRITE_LENGTH * SCALE);
+    sprite->setScale(SCALE, SCALE);
+    sprites.push_back(sprite);
 }
 
-void CreateText(std::vector<sf::Text*>& text, sf::Font& font)
+void CreateText(std::vector<std::unique_ptr<sf::Text>>& text, sf::Font& font)
 {
-    sf::Text* turnText = new sf::Text("TURN", font);
-    turnText->setCharacterSize(48);
-    turnText->setStyle(sf::Text::Bold);
-    turnText->setFillColor(sf::Color::Red);
-    turnText->setPosition(BOARD_LENGTH * SPRITE_LENGTH * SCALE * 1.25 - turnText->getGlobalBounds().width/2, SPRITE_LENGTH * SCALE); // center in the ui a square down from the top
-    text.push_back(turnText);
+    std::unique_ptr<sf::Text> txt = std::make_unique<sf::Text>("TURN", font);
+    txt->setCharacterSize(48);
+    txt->setStyle(sf::Text::Bold);
+    txt->setFillColor(sf::Color::Red);
+    txt->setPosition(BOARD_LENGTH * SPRITE_LENGTH * SCALE * 1.25 - txt->getGlobalBounds().width/2, SPRITE_LENGTH * SCALE); // center in the ui a square down from the top
+    text.push_back(std::move(txt));
 
-    sf::Text* resignText = new sf::Text("RESIGN", font);
-    resignText->setCharacterSize(28);
-    resignText->setStyle(sf::Text::Bold);
-    resignText->setFillColor(sf::Color::Red);
-    resignText->setPosition(BOARD_LENGTH * SPRITE_LENGTH * SCALE * 1.25 - resignText->getGlobalBounds().width / 2, 4 * SPRITE_LENGTH * SCALE + resignText->getGlobalBounds().height * 0.8); // center in the ui 4 squares down from the top
-    text.push_back(resignText);
+    txt = std::make_unique<sf::Text>("RESIGN", font);
+    txt->setCharacterSize(28);
+    txt->setStyle(sf::Text::Bold);
+    txt->setFillColor(sf::Color::Red);
+    txt->setPosition(BOARD_LENGTH * SPRITE_LENGTH * SCALE * 1.25 - txt->getGlobalBounds().width / 2, 4 * SPRITE_LENGTH * SCALE + txt->getGlobalBounds().height * 0.8); // center in the ui 4 squares down from the top
+    text.push_back(std::move(txt));
 }
-my::Piece* GetHeldSprite(std::vector<my::Piece*>& pieces, bool* grid, int x, int y)
+std::shared_ptr<my::Piece> GetHeldPiece(std::vector<std::shared_ptr<my::Piece>>& pieces, bool* grid, int x, int y)
 {
     if (grid[y * BOARD_LENGTH + x])
     {
-        for (int k = 0; k < pieces.size(); k++)
+        for (auto& spr : pieces)
         {
-            int sprX = pieces[k]->sprite->getPosition().x / (SPRITE_LENGTH * SCALE);
-            int sprY = pieces[k]->sprite->getPosition().y / (SPRITE_LENGTH * SCALE);
+            int sprX = spr->Sprite->getPosition().x / (SPRITE_LENGTH * SCALE);
+            int sprY = spr->Sprite->getPosition().y / (SPRITE_LENGTH * SCALE);
             if (x == sprX && y == sprY)
-                return pieces[k];
+                return spr;
         }
     }
     return nullptr;
 }
 
-void ToggleTurnUI(std::vector<sf::Sprite*>& sprites, my::TextureHolder& textureHolder, my::Side turn)
+void ToggleTurnUI(std::vector<std::shared_ptr<sf::Sprite>>& sprites, my::TextureHolder& textureHolder, my::Colour turn)
 {
     if ((int)turn) // currently black turn
     {
@@ -248,7 +236,15 @@ void ToggleTurnUI(std::vector<sf::Sprite*>& sprites, my::TextureHolder& textureH
     }
 }
 
-void RenderSprites(std::vector<sf::Sprite*>& sprites, sf::RenderWindow& window)
+void RenderSprites(std::vector<std::unique_ptr<sf::Sprite>>& sprites, sf::RenderWindow& window)
+{
+    for (auto& spr : sprites)
+    {
+        window.draw(*spr);
+    }
+}
+
+void RenderSprites(std::vector<std::shared_ptr<sf::Sprite>>& sprites, sf::RenderWindow& window)
 {
     for (auto spr : sprites)
     {
@@ -256,9 +252,9 @@ void RenderSprites(std::vector<sf::Sprite*>& sprites, sf::RenderWindow& window)
     }
 }
 
-void RenderText(std::vector<sf::Text*>& text, sf::RenderWindow& window)
+void RenderText(std::vector<std::unique_ptr<sf::Text>>& text, sf::RenderWindow& window)
 {
-    for (auto t : text)
+    for (auto& t : text)
     {
         window.draw(*t);
     }
@@ -267,7 +263,7 @@ void RenderText(std::vector<sf::Text*>& text, sf::RenderWindow& window)
 // returns false if pos is occupied
 bool CheckPos(bool* grid, int x, int y, my::Piece* heldPiece, sf::Vector2i* prevPosition)
 {
-    if (x < 0 || x > BOARD_LENGTH - 1) // off the board
+    if (x < 0 || x > BOARD_LENGTH - 1 || y < 0 || y > BOARD_LENGTH - 1) // off the board
     {
         return false;
     }
@@ -275,11 +271,11 @@ bool CheckPos(bool* grid, int x, int y, my::Piece* heldPiece, sf::Vector2i* prev
     {
         return false;
     }
-    else if (heldPiece->side == my::Side::RED && IsInvalidRedMove(prevPosition, x, y)) // Make sure normal red pieces only go diagonaly down
+    else if (heldPiece->Side == my::Colour::RED && IsInvalidRedMove(prevPosition, x, y)) // Make sure normal red pieces only go diagonaly down
     {
         return false;
     }
-    else if (heldPiece->side == my::Side::BLACK && IsInvalidBlackMove(prevPosition, x, y)) // Make sure normal black pieces only go diagonaly up
+    else if (heldPiece->Side == my::Colour::BLACK && IsInvalidBlackMove(prevPosition, x, y)) // Make sure normal black pieces only go diagonaly up
     {
         return false;
     }
@@ -302,8 +298,25 @@ bool IsInvalidBlackMove(sf::Vector2i* prevPosition, int x, int y)
         abs(prevPosition->x - x * SPRITE_LENGTH * SCALE) > 1 * SPRITE_LENGTH * SCALE; // cant move more than 1 left or right
 }
 
+void CheckJumps()
+{
+    // RULE: if there is a jump, then it must be taken
+    // ALGO 
+    // if piece is a king, check all four possible jumps
+    // else if piece is red, check down jumps
+    // else if black, check up jumps
+    // for a jump, check if the piece to be taken is there, else jump is invalid
+    // then check if the next space in the same direction is open, else jump is invalid
+    // if jump is valid, add the landing space, and piece to be taken to the list of possible jumps
+    // highlight all possible jumps
+    // ADD TO REGULAR MOVEMENT ALGO
+    // Check for possible jumps and dont allow normal movement if there are any possible jumps
+    // ADD TO PIECE STRUCT:
+    // list of possible jumps if any
+}
+
 // DEBUG FUNCTIONS
-void DebugGrid(std::vector<sf::CircleShape>& shapes, bool* grid)
+void DebugGrid(std::vector<std::unique_ptr<sf::CircleShape>>& shapes, bool* grid)
 {
     for (int i = 0; i < BOARD_LENGTH; i++)
     {
@@ -311,33 +324,33 @@ void DebugGrid(std::vector<sf::CircleShape>& shapes, bool* grid)
         {
             if (grid[j * BOARD_LENGTH + i] == true)
             {
-                sf::CircleShape circle;
-                circle.setRadius(SPRITE_LENGTH/2 * SCALE);
-                circle.setFillColor(sf::Color::Green);
-                circle.setPosition(i * SPRITE_LENGTH * SCALE, j * SPRITE_LENGTH * SCALE);
-                shapes.push_back(circle);
+                std::unique_ptr<sf::CircleShape> circle = std::make_unique<sf::CircleShape>();
+                circle->setRadius(SPRITE_LENGTH/2 * SCALE);
+                circle->setFillColor(sf::Color::Green);
+                circle->setPosition(i * SPRITE_LENGTH * SCALE, j * SPRITE_LENGTH * SCALE);
+                shapes.push_back(std::move(circle));
             }
         }
     }
 }
 
-void DebugClickOnGrid(std::vector<sf::CircleShape>& shapes, bool* grid, int x, int y)
+void DebugClickOnGrid(std::vector<std::unique_ptr<sf::CircleShape>>& shapes, bool* grid, int x, int y)
 {
     if (grid[y * BOARD_LENGTH + x])
     {
-        sf::CircleShape circle;
-        circle.setRadius(SPRITE_LENGTH / 2 * SCALE);
-        circle.setFillColor(sf::Color::Green);
-        circle.setPosition(x * SPRITE_LENGTH * SCALE, y * SPRITE_LENGTH * SCALE);
-        shapes.push_back(circle);
+        std::unique_ptr<sf::CircleShape> circle = std::make_unique<sf::CircleShape>();
+        circle->setRadius(SPRITE_LENGTH / 2 * SCALE);
+        circle->setFillColor(sf::Color::Green);
+        circle->setPosition(x * SPRITE_LENGTH * SCALE, y * SPRITE_LENGTH * SCALE);
+        shapes.push_back(std::move(circle));
     }
 }
 
-void DrawDebugShapes(std::vector<sf::CircleShape>& shapes, sf::RenderWindow& window)
+void DrawDebugShapes(std::vector<std::unique_ptr<sf::CircleShape>>& shapes, sf::RenderWindow& window)
 {
-    for (auto shape : shapes)
+    for (auto& shape : shapes)
     {
-        window.draw(shape);
+        window.draw(*shape);
     }
 }
 

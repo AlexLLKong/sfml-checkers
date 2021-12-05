@@ -76,31 +76,69 @@ int main()
                 int y = sf::Mouse::getPosition(window).y;
                 int gridX = ToGridCoordinate(x);
                 int gridY = ToGridCoordinate(y);
-                // invalid move pos
-                if (!CheckPos(grid, gridX, gridY, heldPiece.get(), prevPosition.get()))
+                if (AreAnyJumps(pieces)) // check for any jumps
                 {
-                    heldPiece->Sprite->setPosition(prevPosition->x, prevPosition->y);
-                }
-                else //valid pos
-                {
-                    heldPiece->Sprite->setPosition(gridX * SPRITE_LENGTH * SCALE, gridY * SPRITE_LENGTH * SCALE);
-                    grid[gridY * BOARD_LENGTH + gridX] = true;
-                    grid[ToGridCoordinate(prevPosition->y) * BOARD_LENGTH + ToGridCoordinate(prevPosition->x)] = false;
-                    prevPosition->x = 0;
-                    prevPosition->y = 0;
+                    std::shared_ptr<my::Piece> pieceToTake = IsValidJump(gridX, gridY, heldPiece);
+                    if (pieceToTake) // this is one of the jumps
+                    {
+                        heldPiece->Sprite->setPosition(gridX * SPRITE_LENGTH * SCALE, gridY * SPRITE_LENGTH * SCALE);
+                        grid[gridY * BOARD_LENGTH + gridX] = true;
+                        grid[ToGridCoordinate(prevPosition->y) * BOARD_LENGTH + ToGridCoordinate(prevPosition->x)] = false;
+                        prevPosition->x = 0;
+                        prevPosition->y = 0;
+                        
+                        // remove pieceToTake from pieces
+                        grid[ToGridCoordinate(pieceToTake->Sprite->getPosition().y) * BOARD_LENGTH + 
+                             ToGridCoordinate(pieceToTake->Sprite->getPosition().x)] = false;
+                        pieceSprites.erase(std::remove(pieceSprites.begin(), pieceSprites.end(), pieceToTake->Sprite));
+                        pieces.erase(std::remove(pieces.begin(), pieces.end(), pieceToTake));
+                        shapes.clear();
 
-                    // change the turn
-                    ToggleTurnUI(uiSprites, textureHolder, turn);
-                    turn = (int)turn ? my::Colour::RED : my::Colour::BLACK;
+                        GenerateJumps(grid, pieces, heldPiece->Side == my::Colour::BLACK ? my::Colour::RED : my::Colour::BLACK); // still jumps to make?
+                        // change the turn if there are no more jumps
+                        if (!AreAnyJumps(pieces))
+                        {
+                            GenerateJumps(grid, pieces, heldPiece->Side); // generate jumps for next turn
+                            ToggleTurnUI(uiSprites, textureHolder, turn);
+                            turn = (int)turn ? my::Colour::RED : my::Colour::BLACK;
+                        }
+                    }
+                    else // attempted move was not one of the jumps and therefore is cancelled
+                    {
+                        heldPiece->Sprite->setPosition(prevPosition->x, prevPosition->y);
+                    }
+                    heldPiece = nullptr;
                 }
-                heldPiece = nullptr;
+                else // check for normal movement
+                {
+                    // invalid move pos
+                    if (!CheckPos(grid, gridX, gridY, heldPiece.get(), prevPosition.get()))
+                    {
+                        heldPiece->Sprite->setPosition(prevPosition->x, prevPosition->y);
+                    }
+                    else //valid pos
+                    {
+                        heldPiece->Sprite->setPosition(gridX * SPRITE_LENGTH * SCALE, gridY * SPRITE_LENGTH * SCALE);
+                        grid[gridY * BOARD_LENGTH + gridX] = true;
+                        grid[ToGridCoordinate(prevPosition->y) * BOARD_LENGTH + ToGridCoordinate(prevPosition->x)] = false;
+                        prevPosition->x = 0;
+                        prevPosition->y = 0;
+
+                        GenerateJumps(grid, pieces, heldPiece->Side); // generate jumps for next turn
+                        // change the turn
+                        ToggleTurnUI(uiSprites, textureHolder, turn);
+                        turn = (int)turn ? my::Colour::RED : my::Colour::BLACK;
+                    }
+                    heldPiece = nullptr;
+                }
+                DebugDrawJumps(pieces, shapes);
             }
             window.clear();
             RenderSprites(boardSprites, window);
             RenderSprites(pieceSprites, window);
             RenderSprites(uiSprites, window);
             RenderText(text, window);
-            //DrawDebugShapes(shapes, window);
+            DrawDebugShapes(shapes, window);
             window.display();
         }
     }
@@ -263,7 +301,7 @@ void RenderText(std::vector<std::unique_ptr<sf::Text>>& text, sf::RenderWindow& 
 // returns false if pos is occupied
 bool CheckPos(bool* grid, int x, int y, my::Piece* heldPiece, sf::Vector2i* prevPosition)
 {
-    if (x < 0 || x > BOARD_LENGTH - 1 || y < 0 || y > BOARD_LENGTH - 1) // off the board
+    if (!IsWithinGrid(x) || !IsWithinGrid(y)) // off the board
     {
         return false;
     }
@@ -298,23 +336,114 @@ bool IsInvalidBlackMove(sf::Vector2i* prevPosition, int x, int y)
         abs(prevPosition->x - x * SPRITE_LENGTH * SCALE) > 1 * SPRITE_LENGTH * SCALE; // cant move more than 1 left or right
 }
 
-void CheckJumps()
+std::shared_ptr<my::Piece> IsValidJump(int x, int y, std::shared_ptr<my::Piece> heldPiece)
 {
-    // RULE: if there is a jump, then it must be taken
-    // ALGO 
-    // if piece is a king, check all four possible jumps
-    // else if piece is red, check down jumps
-    // else if black, check up jumps
-    // for a jump, check if the piece to be taken is there, else jump is invalid
-    // then check if the next space in the same direction is open, else jump is invalid
-    // if jump is valid, add the landing space, and piece to be taken to the list of possible jumps
-    // highlight all possible jumps
-    // ADD TO REGULAR MOVEMENT ALGO
-    // Check for possible jumps and dont allow normal movement if there are any possible jumps
-    // ADD TO PIECE STRUCT:
-    // list of possible jumps if any
+    if (heldPiece->PossibleTakes.size() > 0)
+    {
+        for (auto pt : heldPiece->PossibleTakes)
+        {
+            if (x == pt.landX && y == pt.landY)
+                return pt.pieceToBeTaken;
+        }
+    }
+    return nullptr;
 }
 
+bool AreAnyJumps(std::vector<std::shared_ptr<my::Piece>>& pieces)
+{
+    for (auto& piece : pieces)
+    {
+        if (piece->PossibleTakes.size() > 0)
+            return true;
+    }
+    return false;
+}
+
+void ClearJumps(std::vector<std::shared_ptr<my::Piece>>& pieces)
+{
+    for (auto& piece : pieces)
+    {
+        piece->PossibleTakes.clear();
+    }
+}
+
+void GenerateJumps(bool* grid, std::vector<std::shared_ptr<my::Piece>>& pieces, my::Colour heldPieceSide)
+{
+    ClearJumps(pieces); // always start with no jumps
+    for (auto& piece : pieces)
+    {
+        if (piece->Side != heldPieceSide) // only generate jumps for the side whose turn it is next
+        {
+            if (piece->isKing)
+            {
+                GenerateDownJumps(grid, piece.get(), pieces);
+                GenerateUpJumps(grid, piece.get(), pieces);
+            }
+            // else if piece is black, check up jumps
+            else if (piece->Side == my::Colour::BLACK)
+            {
+                GenerateUpJumps(grid, piece.get(), pieces);
+            }
+            // else red, check down jumps
+            else
+            {
+                GenerateDownJumps(grid, piece.get(), pieces);
+            }
+        }
+    }
+}
+
+void GenerateDownJumps(bool* grid, my::Piece* heldPiece, std::vector<std::shared_ptr<my::Piece>>& pieces)
+{
+    int curX = ToGridCoordinate(heldPiece->Sprite->getPosition().x);
+    int curY = ToGridCoordinate(heldPiece->Sprite->getPosition().y);
+    // test down left
+    int testTakeX = curX - 1;
+    int testTakeY = curY + 1;
+    int testLandX = curX - 2;
+    int testLandY = curY + 2;
+    GenerateJump(grid, heldPiece, pieces, testTakeX, testTakeY, testLandX, testLandY);
+    // test down right
+    testTakeX = curX + 1;
+    testTakeY = curY + 1;
+    testLandX = curX + 2;
+    testLandY = curY + 2;
+    GenerateJump(grid, heldPiece, pieces, testTakeX, testTakeY, testLandX, testLandY);
+}
+
+void GenerateUpJumps(bool* grid, my::Piece* heldPiece, std::vector<std::shared_ptr<my::Piece>>& pieces)
+{
+    int curX = ToGridCoordinate(heldPiece->Sprite->getPosition().x);
+    int curY = ToGridCoordinate(heldPiece->Sprite->getPosition().y);
+    // test up left
+    int testTakeX = curX - 1;
+    int testTakeY = curY - 1;
+    int testLandX = curX - 2;
+    int testLandY = curY - 2;
+    GenerateJump(grid, heldPiece, pieces, testTakeX, testTakeY, testLandX, testLandY);
+    // test up right
+    testTakeX = curX + 1;
+    testTakeY = curY - 1;
+    testLandX = curX + 2;
+    testLandY = curY - 2;
+    GenerateJump(grid, heldPiece, pieces, testTakeX, testTakeY, testLandX, testLandY);
+}
+
+void GenerateJump(bool* grid, my::Piece* heldPiece, std::vector<std::shared_ptr<my::Piece>>& pieces, int testTakeX, int testTakeY, int testLandX, int testLandY)
+{
+    // make sure not landing off board
+    if (!IsWithinGrid(testLandX) || !IsWithinGrid(testLandY)) return;
+    // make sure landing isn't occupied
+    if (IsSquareOccupied(testLandX, testLandY, grid)) return;
+    std::shared_ptr<my::Piece> pieceToTake = GetPieceAtPosition(testTakeX, testTakeY, pieces);
+    // make sure piece to take exists
+    if (!pieceToTake) return;
+    // make sure piece to take is not same side
+    if (pieceToTake->Side == heldPiece->Side) return;
+    // take is now valid
+    my::Piece::PossibleTake possibleTake = { testLandX, testLandY, pieceToTake };
+    heldPiece->PossibleTakes.push_back(possibleTake);
+}
 // DEBUG FUNCTIONS
 void DebugGrid(std::vector<std::unique_ptr<sf::CircleShape>>& shapes, bool* grid)
 {
@@ -334,7 +463,7 @@ void DebugGrid(std::vector<std::unique_ptr<sf::CircleShape>>& shapes, bool* grid
     }
 }
 
-void DebugClickOnGrid(std::vector<std::unique_ptr<sf::CircleShape>>& shapes, bool* grid, int x, int y)
+void DebugCircleOnGrid(std::vector<std::unique_ptr<sf::CircleShape>>& shapes, bool* grid, int x, int y)
 {
     if (grid[y * BOARD_LENGTH + x])
     {
@@ -343,6 +472,26 @@ void DebugClickOnGrid(std::vector<std::unique_ptr<sf::CircleShape>>& shapes, boo
         circle->setFillColor(sf::Color::Green);
         circle->setPosition(x * SPRITE_LENGTH * SCALE, y * SPRITE_LENGTH * SCALE);
         shapes.push_back(std::move(circle));
+    }
+}
+
+void DebugDrawJumps(std::vector<std::shared_ptr<my::Piece>>& pieces, std::vector<std::unique_ptr<sf::CircleShape>>& shapes)
+{
+    for (auto& piece : pieces)
+    {
+        if (piece->PossibleTakes.size() > 0)
+        {
+            for (auto pt : piece->PossibleTakes)
+            {
+                std::unique_ptr<sf::CircleShape> circle = std::make_unique<sf::CircleShape>();
+                circle->setRadius(SPRITE_LENGTH / 2 * SCALE);
+                circle->setOutlineColor(sf::Color::Green);
+                circle->setOutlineThickness(5.0f);
+                circle->setFillColor(sf::Color::Transparent);
+                circle->setPosition(pt.landX * SPRITE_LENGTH * SCALE, pt.landY * SPRITE_LENGTH * SCALE);
+                shapes.push_back(std::move(circle));
+            }
+        }
     }
 }
 
@@ -359,4 +508,25 @@ void DrawDebugShapes(std::vector<std::unique_ptr<sf::CircleShape>>& shapes, sf::
 int ToGridCoordinate(int n)
 {
     return n / (SPRITE_LENGTH * SCALE);
+}
+
+bool IsWithinGrid(int n)
+{
+    return n >= 0 && n <= BOARD_LENGTH - 1;
+}
+
+bool IsSquareOccupied(int x, int y, bool *grid)
+{
+    return grid[y * BOARD_LENGTH + x];
+}
+
+std::shared_ptr<my::Piece> GetPieceAtPosition(int x, int y, std::vector<std::shared_ptr<my::Piece>>& pieces)
+{
+    for (auto& piece : pieces)
+    {
+        if (ToGridCoordinate(piece->Sprite->getPosition().x) == x &&
+            ToGridCoordinate(piece->Sprite->getPosition().y) == y)
+            return piece;
+    }
+    return nullptr;
 }

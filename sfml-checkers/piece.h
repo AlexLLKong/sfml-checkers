@@ -8,9 +8,14 @@ namespace my{
 		BLACK
 	};
 	struct Piece {
+		struct PossibleTake {
+			int landX, landY;
+			std::shared_ptr<my::Piece> pieceToBeTaken;
+		};
 		std::shared_ptr<sf::Sprite> Sprite;
 		Colour Side;
 		bool isKing = false;
+		std::vector<my::Piece::PossibleTake> PossibleTakes;
 		Piece() = delete;
 		Piece(Colour side, std::shared_ptr<sf::Sprite> sprite)
 		{

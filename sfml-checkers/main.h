@@ -26,14 +26,36 @@ bool IsInvalidRedMove(sf::Vector2i* prevPosition, int x, int y);
 
 bool IsInvalidBlackMove(sf::Vector2i* prevPosition, int x, int y);
 
+std::shared_ptr<my::Piece> IsValidJump(int x, int y, std::shared_ptr<my::Piece> heldPiece);
+
+bool AreAnyJumps(std::vector<std::shared_ptr<my::Piece>>& pieces);
+
+void ClearJumps(std::vector<std::shared_ptr<my::Piece>>& pieces);
+
+void GenerateJumps(bool* grid, std::vector<std::shared_ptr<my::Piece>>& pieces, my::Colour heldPieceSide);
+
+void GenerateDownJumps(bool* grid, my::Piece* heldPiece, std::vector<std::shared_ptr<my::Piece>>& pieces);
+
+void GenerateUpJumps(bool* grid, my::Piece* heldPiece, std::vector<std::shared_ptr<my::Piece>>& pieces);
+
+void GenerateJump(bool* grid, my::Piece* heldPiece, std::vector<std::shared_ptr<my::Piece>>& pieces, int testTakeX, int testTakeY, int testLandX, int testLandY);
+
 // DEBUG FUNCTIONS
 
 void DebugGrid(std::vector<std::shared_ptr<sf::CircleShape>>& shapes, bool* grid);
 
 void DebugClickOnGrid(std::vector<std::shared_ptr<sf::CircleShape>>& shapes, bool* grid, int x, int y);
 
-void DrawDebugShapes(std::vector<std::shared_ptr<sf::CircleShape>>& shapes, sf::RenderWindow& window);
+void DebugDrawJumps(std::vector<std::shared_ptr<my::Piece>>& pieces, std::vector<std::unique_ptr<sf::CircleShape>>& shapes);
+
+void DrawDebugShapes(std::vector<std::unique_ptr<sf::CircleShape>>& shapes, sf::RenderWindow& window);
 
 // UTILITY FUNCTIONS
 
 int ToGridCoordinate(int n);
+
+bool IsWithinGrid(int n);
+
+bool IsSquareOccupied(int x, int y, bool* grid);
+
+std::shared_ptr<my::Piece> GetPieceAtPosition(int x, int y, std::vector<std::shared_ptr<my::Piece>>& pieces);

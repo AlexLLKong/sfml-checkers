@@ -9,6 +9,8 @@ namespace my {
 		std::unique_ptr<sf::Texture> blackPieceTexture;
 		std::unique_ptr<sf::Texture> uiBackgroundTexture;
 		std::unique_ptr<sf::Texture> resignButtonTexture;
+        std::unique_ptr<sf::Texture> redKingPieceTexture;
+        std::unique_ptr<sf::Texture> blackKingPieceTexture;
         bool allTexturesLoaded = true;
 		TextureHolder() {
             redSquareTexture = std::make_unique<sf::Texture>();
@@ -17,7 +19,8 @@ namespace my {
             blackPieceTexture = std::make_unique<sf::Texture>();
             uiBackgroundTexture = std::make_unique<sf::Texture>();
             resignButtonTexture = std::make_unique<sf::Texture>();
-
+            redKingPieceTexture = std::make_unique<sf::Texture>();
+            blackKingPieceTexture = std::make_unique<sf::Texture>();
             if (!redSquareTexture->loadFromFile("sprites/red-square.png"))
             {
                 allTexturesLoaded = false;
@@ -32,6 +35,14 @@ namespace my {
                 allTexturesLoaded = false;
             }
             if (!blackPieceTexture->loadFromFile("sprites/black-piece.png"))
+            {
+                allTexturesLoaded = false;
+            }
+            if (!redKingPieceTexture->loadFromFile("sprites/red-king-piece.png"))
+            {
+                allTexturesLoaded = false;
+            }
+            if (!blackKingPieceTexture->loadFromFile("sprites/black-king-piece.png"))
             {
                 allTexturesLoaded = false;
             }

@@ -9,13 +9,10 @@ int main()
 
     // init textures
     my::TextureHolder textureHolder;
-
+    if (!textureHolder.allTexturesLoaded) return 0;
     // init font
     sf::Font font;
-    if (!font.loadFromFile("font/upheavtt.ttf"))
-    {
-        return 0;
-    }
+    if (!font.loadFromFile("font/upheavtt.ttf")) return 0;
 
     // setup grid tracker
     bool grid[BOARD_LENGTH * BOARD_LENGTH] = {false};
@@ -93,7 +90,8 @@ int main()
                         pieceSprites.erase(std::remove(pieceSprites.begin(), pieceSprites.end(), pieceToTake->Sprite));
                         pieces.erase(std::remove(pieces.begin(), pieces.end(), pieceToTake));
                         shapes.clear();
-
+                        // TODO: check and make king here!
+                        CheckAndMakeKing(gridY, heldPiece, textureHolder);
                         GenerateJumps(grid, pieces, heldPiece->Side == my::Colour::BLACK ? my::Colour::RED : my::Colour::BLACK); // still jumps to make?
                         // change the turn if there are no more jumps
                         if (!AreAnyJumps(pieces))
@@ -123,7 +121,8 @@ int main()
                         grid[ToGridCoordinate(prevPosition->y) * BOARD_LENGTH + ToGridCoordinate(prevPosition->x)] = false;
                         prevPosition->x = 0;
                         prevPosition->y = 0;
-
+                        // TODO: check and make king here!
+                        CheckAndMakeKing(gridY, heldPiece, textureHolder);
                         GenerateJumps(grid, pieces, heldPiece->Side); // generate jumps for next turn
                         // change the turn
                         ToggleTurnUI(uiSprites, textureHolder, turn);
@@ -309,11 +308,15 @@ bool CheckPos(bool* grid, int x, int y, my::Piece* heldPiece, sf::Vector2i* prev
     {
         return false;
     }
-    else if (heldPiece->Side == my::Colour::RED && IsInvalidRedMove(prevPosition, x, y)) // Make sure normal red pieces only go diagonaly down
+    else if (heldPiece->isKing && (IsInvalidRedMove(prevPosition, x, y) && IsInvalidBlackMove(prevPosition, x, y)))
     {
         return false;
     }
-    else if (heldPiece->Side == my::Colour::BLACK && IsInvalidBlackMove(prevPosition, x, y)) // Make sure normal black pieces only go diagonaly up
+    else if (heldPiece->Side == my::Colour::RED && !heldPiece->isKing && IsInvalidRedMove(prevPosition, x, y)) // Make sure normal red pieces only go diagonaly down
+    {
+        return false;
+    }
+    else if (heldPiece->Side == my::Colour::BLACK && !heldPiece->isKing && IsInvalidBlackMove(prevPosition, x, y)) // Make sure normal black pieces only go diagonaly up
     {
         return false;
     }
@@ -444,6 +447,21 @@ void GenerateJump(bool* grid, my::Piece* heldPiece, std::vector<std::shared_ptr<
     my::Piece::PossibleTake possibleTake = { testLandX, testLandY, pieceToTake };
     heldPiece->PossibleTakes.push_back(possibleTake);
 }
+
+void CheckAndMakeKing(int y, std::shared_ptr<my::Piece> heldPiece, my::TextureHolder& textureHolder)
+{
+    if (heldPiece->Side == my::Colour::RED && y == BOARD_LENGTH - 1)
+    {
+        heldPiece->isKing = true;
+        heldPiece->Sprite->setTexture(*textureHolder.redKingPieceTexture);
+    }
+    else if (heldPiece->Side == my::Colour::BLACK && y == 0)
+    {
+        heldPiece->isKing = true;
+        heldPiece->Sprite->setTexture(*textureHolder.blackKingPieceTexture);
+    }
+}
+
 // DEBUG FUNCTIONS
 void DebugGrid(std::vector<std::unique_ptr<sf::CircleShape>>& shapes, bool* grid)
 {

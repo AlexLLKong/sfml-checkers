@@ -40,6 +40,8 @@ void GenerateUpJumps(bool* grid, my::Piece* heldPiece, std::vector<std::shared_p
 
 void GenerateJump(bool* grid, my::Piece* heldPiece, std::vector<std::shared_ptr<my::Piece>>& pieces, int testTakeX, int testTakeY, int testLandX, int testLandY);
 
+void CheckAndMakeKing(int y, std::shared_ptr<my::Piece> heldPiece, my::TextureHolder& textureHolder);
+
 // DEBUG FUNCTIONS
 
 void DebugGrid(std::vector<std::shared_ptr<sf::CircleShape>>& shapes, bool* grid);

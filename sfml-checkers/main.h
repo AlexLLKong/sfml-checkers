@@ -8,7 +8,7 @@ void CreateUI(std::vector<std::shared_ptr<sf::Sprite>>& sprites, my::TextureHold
 
 void CreatePieces(std::vector<std::shared_ptr<my::Piece>>& pieces, my::TextureHolder& textureHolder, bool* grid, std::vector<std::shared_ptr<sf::Sprite>>& sprites);
 
-void CreateText(std::vector<std::unique_ptr<sf::Text>>& text, sf::Font& font);
+void CreateText(std::vector<std::shared_ptr<sf::Text>>& text, sf::Font& font);
 
 std::shared_ptr<my::Piece> GetHeldPiece(std::vector<std::shared_ptr<my::Piece>>& pieces, bool* grid, int x, int y);
 
@@ -18,7 +18,7 @@ void RenderSprites(std::vector<std::shared_ptr<sf::Sprite>>& sprites, sf::Render
 
 void RenderSprites(std::vector<std::unique_ptr<sf::Sprite>>& sprites, sf::RenderWindow& window);
 
-void RenderText(std::vector<std::unique_ptr<sf::Text>>& text, sf::RenderWindow& window);
+void RenderText(std::vector<std::shared_ptr<sf::Text>>& text, sf::RenderWindow& window);
 
 bool CheckPos(bool* grid, int x, int y, my::Piece* heldPiece, sf::Vector2i* prevPosition);
 
@@ -41,6 +41,10 @@ void GenerateUpJumps(bool* grid, my::Piece* heldPiece, std::vector<std::shared_p
 void GenerateJump(bool* grid, my::Piece* heldPiece, std::vector<std::shared_ptr<my::Piece>>& pieces, int testTakeX, int testTakeY, int testLandX, int testLandY);
 
 void CheckAndMakeKing(int y, std::shared_ptr<my::Piece> heldPiece, my::TextureHolder& textureHolder);
+
+void CheckForWin(std::vector<std::shared_ptr<my::Piece>>& pieces, std::shared_ptr<sf::Text> winText);
+
+void GameWon(my::Colour side, std::shared_ptr<sf::Text> winText);
 
 // DEBUG FUNCTIONS
 

@@ -29,7 +29,7 @@ int main()
     // debug shapes
     std::vector<std::unique_ptr<sf::CircleShape>> shapes;
     // setup text
-    std::vector<std::unique_ptr<sf::Text>> text;
+    std::vector<std::shared_ptr<sf::Text>> text;
     CreateText(text, font);
 
     // black goes first
@@ -100,6 +100,7 @@ int main()
                             ToggleTurnUI(uiSprites, textureHolder, turn);
                             turn = (int)turn ? my::Colour::RED : my::Colour::BLACK;
                         }
+                        CheckForWin(pieces, text[2]);
                     }
                     else // attempted move was not one of the jumps and therefore is cancelled
                     {
@@ -230,21 +231,27 @@ void CreateUI(std::vector<std::shared_ptr<sf::Sprite>>& sprites, my::TextureHold
     sprites.push_back(sprite);
 }
 
-void CreateText(std::vector<std::unique_ptr<sf::Text>>& text, sf::Font& font)
+void CreateText(std::vector<std::shared_ptr<sf::Text>>& text, sf::Font& font)
 {
-    std::unique_ptr<sf::Text> txt = std::make_unique<sf::Text>("TURN", font);
+    std::shared_ptr<sf::Text> txt = std::make_shared<sf::Text>("TURN", font);
     txt->setCharacterSize(48);
     txt->setStyle(sf::Text::Bold);
     txt->setFillColor(sf::Color::Red);
     txt->setPosition(BOARD_LENGTH * SPRITE_LENGTH * SCALE * 1.25 - txt->getGlobalBounds().width/2, SPRITE_LENGTH * SCALE); // center in the ui a square down from the top
-    text.push_back(std::move(txt));
+    text.push_back(txt);
 
-    txt = std::make_unique<sf::Text>("RESIGN", font);
+    txt = std::make_shared<sf::Text>("RESIGN", font);
     txt->setCharacterSize(28);
     txt->setStyle(sf::Text::Bold);
     txt->setFillColor(sf::Color::Red);
     txt->setPosition(BOARD_LENGTH * SPRITE_LENGTH * SCALE * 1.25 - txt->getGlobalBounds().width / 2, 4 * SPRITE_LENGTH * SCALE + txt->getGlobalBounds().height * 0.8); // center in the ui 4 squares down from the top
-    text.push_back(std::move(txt));
+    text.push_back(txt);
+
+    txt = std::make_shared<sf::Text>("", font);
+    txt->setCharacterSize(64);
+    txt->setStyle(sf::Text::Bold);
+    txt->setFillColor(sf::Color::Red);
+    text.push_back(txt);
 }
 std::shared_ptr<my::Piece> GetHeldPiece(std::vector<std::shared_ptr<my::Piece>>& pieces, bool* grid, int x, int y)
 {
@@ -289,7 +296,7 @@ void RenderSprites(std::vector<std::shared_ptr<sf::Sprite>>& sprites, sf::Render
     }
 }
 
-void RenderText(std::vector<std::unique_ptr<sf::Text>>& text, sf::RenderWindow& window)
+void RenderText(std::vector<std::shared_ptr<sf::Text>>& text, sf::RenderWindow& window)
 {
     for (auto& t : text)
     {
@@ -460,6 +467,37 @@ void CheckAndMakeKing(int y, std::shared_ptr<my::Piece> heldPiece, my::TextureHo
         heldPiece->isKing = true;
         heldPiece->Sprite->setTexture(*textureHolder.blackKingPieceTexture);
     }
+}
+
+void CheckForWin(std::vector<std::shared_ptr<my::Piece>>& pieces, std::shared_ptr<sf::Text> winText)
+{
+    int redCount = 0;
+    int blackCount = 0;
+    for (auto& piece : pieces)
+    {
+        if (piece->Side == my::Colour::BLACK)
+            blackCount++;
+        else
+            redCount++;
+    }
+    if (redCount == 0)
+        GameWon(my::Colour::BLACK, winText);
+    else if (blackCount == 0)
+        GameWon(my::Colour::RED, winText);
+}
+
+void GameWon(my::Colour side, std::shared_ptr<sf::Text> winText)
+{
+    if (side == my::Colour::BLACK)
+    {
+        winText->setString("BLACK WINS");
+    }
+    else
+    {
+        winText->setString("RED WINS");
+    }
+    winText->setPosition(BOARD_LENGTH * SPRITE_LENGTH * SCALE / 2 - winText->getGlobalBounds().width / 2, BOARD_LENGTH * SPRITE_LENGTH * SCALE / 2 - winText->getGlobalBounds().height * 1.5); // center in the ui 4 squares down from the top
+
 }
 
 // DEBUG FUNCTIONS

@@ -46,6 +46,8 @@ void CheckForWin(std::vector<std::shared_ptr<my::Piece>>& pieces, std::shared_pt
 
 void GameWon(my::Colour side, std::shared_ptr<sf::Text> winText);
 
+void GameDrawn(std::shared_ptr<sf::Text> winText);
+
 // DEBUG FUNCTIONS
 
 void DebugGrid(std::vector<std::shared_ptr<sf::CircleShape>>& shapes, bool* grid);

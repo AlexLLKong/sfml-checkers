@@ -96,15 +96,15 @@ int main()
                         // TODO: check and make king here!
                         CheckAndMakeKing(gridY, heldPiece, textureHolder);
                         GenerateJumps(grid, pieces, heldPiece->Side == my::Colour::BLACK ? my::Colour::RED : my::Colour::BLACK); // still jumps to make?
-                        GenerateMoves(pieces, grid); // generate moves for next turn
                         // change the turn if there are no more jumps
                         if (!AreAnyJumps(pieces))
                         {
                             GenerateJumps(grid, pieces, heldPiece->Side); // generate jumps for next turn
+                            GenerateMoves(pieces, grid); // generate moves for next turn
+                            CheckForWin(pieces, text[2]);
                             ToggleTurnUI(uiSprites, textureHolder, turn);
                             turn = (int)turn ? my::Colour::RED : my::Colour::BLACK;
                         }
-                        CheckForWin(pieces, text[2]);
                     }
                     else // attempted move was not one of the jumps and therefore is cancelled
                     {
@@ -130,6 +130,7 @@ int main()
                         CheckAndMakeKing(gridY, heldPiece, textureHolder);
                         GenerateJumps(grid, pieces, heldPiece->Side); // generate jumps for next turn
                         GenerateMoves(pieces, grid); // generate moves for next turn
+                        CheckForWin(pieces, text[2]);
                         // change the turn
                         ToggleTurnUI(uiSprites, textureHolder, turn);
                         turn = (int)turn ? my::Colour::RED : my::Colour::BLACK;
@@ -506,16 +507,28 @@ void CheckForWin(std::vector<std::shared_ptr<my::Piece>>& pieces, std::shared_pt
 {
     int redCount = 0;
     int blackCount = 0;
+    int redHasMovesOrTakes = 0;
+    int blackHasMovesOrTakes = 0;
     for (auto& piece : pieces)
     {
         if (piece->Side == my::Colour::BLACK)
+        {
             blackCount++;
+            if (piece->PossibleMoves.size() > 0 || piece->PossibleTakes.size() > 0)
+                blackHasMovesOrTakes++;
+        }
         else
+        {
             redCount++;
+            if (piece->PossibleMoves.size() > 0 || piece->PossibleTakes.size() > 0)
+                redHasMovesOrTakes++;
+        }
     }
-    if (redCount == 0)
+    if (redHasMovesOrTakes == 0 && blackHasMovesOrTakes == 0)
+        GameDrawn(winText);
+    else if (redCount == 0 || redHasMovesOrTakes == 0)
         GameWon(my::Colour::BLACK, winText);
-    else if (blackCount == 0)
+    else if (blackCount == 0 || blackHasMovesOrTakes == 0)
         GameWon(my::Colour::RED, winText);
 }
 
@@ -529,8 +542,16 @@ void GameWon(my::Colour side, std::shared_ptr<sf::Text> winText)
     {
         winText->setString("RED WINS");
     }
-    winText->setPosition(BOARD_LENGTH * SPRITE_LENGTH * SCALE / 2 - winText->getGlobalBounds().width / 2, BOARD_LENGTH * SPRITE_LENGTH * SCALE / 2 - winText->getGlobalBounds().height * 1.5); // center in the ui 4 squares down from the top
+    winText->setPosition(BOARD_LENGTH * SPRITE_LENGTH * SCALE / 2 - winText->getGlobalBounds().width / 2, 
+                         BOARD_LENGTH * SPRITE_LENGTH * SCALE / 2 - winText->getGlobalBounds().height * 1.5); // center in the board
 
+}
+
+void GameDrawn(std::shared_ptr<sf::Text> winText)
+{
+    winText->setString("GAME IS DRAWN");
+    winText->setPosition(BOARD_LENGTH * SPRITE_LENGTH * SCALE / 2 - winText->getGlobalBounds().width / 2,
+        BOARD_LENGTH * SPRITE_LENGTH * SCALE / 2 - winText->getGlobalBounds().height * 1.5); // center in the board
 }
 
 // DEBUG FUNCTIONS

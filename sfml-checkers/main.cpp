@@ -35,6 +35,9 @@ int main()
     // black goes first
     my::Colour turn = my::Colour::BLACK;
 
+    // generate moves
+    GenerateMoves(pieces, grid);
+
     std::shared_ptr<my::Piece> heldPiece = nullptr;
     std::unique_ptr<sf::Vector2i> prevPosition = std::make_unique<sf::Vector2i>(0, 0);
     while (window.isOpen())
@@ -93,6 +96,7 @@ int main()
                         // TODO: check and make king here!
                         CheckAndMakeKing(gridY, heldPiece, textureHolder);
                         GenerateJumps(grid, pieces, heldPiece->Side == my::Colour::BLACK ? my::Colour::RED : my::Colour::BLACK); // still jumps to make?
+                        GenerateMoves(pieces, grid); // generate moves for next turn
                         // change the turn if there are no more jumps
                         if (!AreAnyJumps(pieces))
                         {
@@ -111,7 +115,7 @@ int main()
                 else // check for normal movement
                 {
                     // invalid move pos
-                    if (!CheckPos(grid, gridX, gridY, heldPiece.get(), prevPosition.get()))
+                    if (!IsValidMove(heldPiece, gridX, gridY))
                     {
                         heldPiece->Sprite->setPosition(prevPosition->x, prevPosition->y);
                     }
@@ -125,13 +129,16 @@ int main()
                         // TODO: check and make king here!
                         CheckAndMakeKing(gridY, heldPiece, textureHolder);
                         GenerateJumps(grid, pieces, heldPiece->Side); // generate jumps for next turn
+                        GenerateMoves(pieces, grid); // generate moves for next turn
                         // change the turn
                         ToggleTurnUI(uiSprites, textureHolder, turn);
                         turn = (int)turn ? my::Colour::RED : my::Colour::BLACK;
+                        shapes.clear();
                     }
                     heldPiece = nullptr;
                 }
                 DebugDrawJumps(pieces, shapes);
+                //DebugDrawMoves(pieces, shapes, turn);
             }
             window.clear();
             RenderSprites(boardSprites, window);
@@ -304,46 +311,72 @@ void RenderText(std::vector<std::shared_ptr<sf::Text>>& text, sf::RenderWindow& 
     }
 }
 
-// returns false if pos is occupied
-bool CheckPos(bool* grid, int x, int y, my::Piece* heldPiece, sf::Vector2i* prevPosition)
+void ClearMoves(std::vector<std::shared_ptr<my::Piece>> pieces)
 {
-    if (!IsWithinGrid(x) || !IsWithinGrid(y)) // off the board
+    for (auto& piece : pieces)
     {
-        return false;
+        piece->PossibleMoves.clear();
     }
-    else if (grid[y * BOARD_LENGTH + x]) // spot occupied
-    {
-        return false;
-    }
-    else if (heldPiece->isKing && (IsInvalidRedMove(prevPosition, x, y) && IsInvalidBlackMove(prevPosition, x, y)))
-    {
-        return false;
-    }
-    else if (heldPiece->Side == my::Colour::RED && !heldPiece->isKing && IsInvalidRedMove(prevPosition, x, y)) // Make sure normal red pieces only go diagonaly down
-    {
-        return false;
-    }
-    else if (heldPiece->Side == my::Colour::BLACK && !heldPiece->isKing && IsInvalidBlackMove(prevPosition, x, y)) // Make sure normal black pieces only go diagonaly up
-    {
-        return false;
-    }
-    return true;
 }
 
-bool IsInvalidRedMove(sf::Vector2i* prevPosition, int x, int y)
+bool IsValidMove(std::shared_ptr<my::Piece> heldPiece, int x, int y)
 {
-    return prevPosition->x - x * SPRITE_LENGTH * SCALE != -1 * SPRITE_LENGTH * SCALE && prevPosition->y - y * SPRITE_LENGTH * SCALE != -1 * SPRITE_LENGTH * SCALE || // not diagonal right
-        prevPosition->x - x * SPRITE_LENGTH * SCALE != 1 * SPRITE_LENGTH * SCALE && prevPosition->y - y * SPRITE_LENGTH * SCALE != -1 * SPRITE_LENGTH * SCALE || // not diagonal left
-        prevPosition->x - x * SPRITE_LENGTH * SCALE == 0 || // direct down not allowed
-        abs(prevPosition->x - x * SPRITE_LENGTH * SCALE) > 1 * SPRITE_LENGTH * SCALE; // cant move more than 1 left or right
+    for (auto& pm : heldPiece->PossibleMoves)
+    {
+        if (pm.x == x && pm.y == y)
+            return true;
+    }
+    return false;
 }
 
-bool IsInvalidBlackMove(sf::Vector2i* prevPosition, int x, int y)
+void GenerateMoves(std::vector<std::shared_ptr<my::Piece>> pieces, bool* grid)
 {
-    return prevPosition->x - x * SPRITE_LENGTH * SCALE != -1 * SPRITE_LENGTH * SCALE && prevPosition->y - y * SPRITE_LENGTH * SCALE != 1 * SPRITE_LENGTH * SCALE || // not diagonal right
-        prevPosition->x - x * SPRITE_LENGTH * SCALE != 1 * SPRITE_LENGTH * SCALE && prevPosition->y - y * SPRITE_LENGTH * SCALE != 1 * SPRITE_LENGTH * SCALE || // not diagonal left
-        prevPosition->x - x * SPRITE_LENGTH * SCALE == 0 ||  // direct up not allowed
-        abs(prevPosition->x - x * SPRITE_LENGTH * SCALE) > 1 * SPRITE_LENGTH * SCALE; // cant move more than 1 left or right
+    ClearMoves(pieces); // always start with clean slate
+    for (auto& piece : pieces)
+    {
+        int curX = ToGridCoordinate(piece->Sprite->getPosition().x);
+        int curY = ToGridCoordinate(piece->Sprite->getPosition().y);
+        if (piece->Side == my::Colour::BLACK)
+        {
+            // check up moves
+            if(IsWithinGrid(curX - 1) && IsWithinGrid(curY - 1))
+                if (!grid[(curY - 1) * BOARD_LENGTH + (curX - 1)]) // up left is empty
+                    piece->PossibleMoves.push_back({curX - 1, curY - 1});
+            if (IsWithinGrid(curX + 1) && IsWithinGrid(curY - 1))
+                if (!grid[(curY - 1) * BOARD_LENGTH + (curX + 1)]) // up left is empty
+                    piece->PossibleMoves.push_back({ curX + 1, curY - 1 });
+            // check down moves
+            if (piece->isKing)
+            {
+                if (IsWithinGrid(curX - 1) && IsWithinGrid(curY + 1))
+                    if (!grid[(curY + 1) * BOARD_LENGTH + (curX - 1)]) // up left is empty
+                        piece->PossibleMoves.push_back({ curX - 1, curY + 1 });
+                if (IsWithinGrid(curX + 1) && IsWithinGrid(curY + 1))
+                    if (!grid[(curY + 1) * BOARD_LENGTH + (curX + 1)]) // up left is empty
+                        piece->PossibleMoves.push_back({ curX + 1, curY + 1 });
+            }
+        }
+        else 
+        {
+            // check down moves
+            if (IsWithinGrid(curX - 1) && IsWithinGrid(curY + 1))
+                if (!grid[(curY + 1) * BOARD_LENGTH + (curX - 1)]) // up left is empty
+                    piece->PossibleMoves.push_back({ curX - 1, curY + 1 });
+            if (IsWithinGrid(curX + 1) && IsWithinGrid(curY + 1))
+                if (!grid[(curY + 1) * BOARD_LENGTH + (curX + 1)]) // up left is empty
+                    piece->PossibleMoves.push_back({ curX + 1, curY + 1 });
+            if (piece->isKing)
+            {
+                // check up moves
+                if (IsWithinGrid(curX - 1) && IsWithinGrid(curY - 1))
+                    if (!grid[(curY - 1) * BOARD_LENGTH + (curX - 1)]) // up left is empty
+                        piece->PossibleMoves.push_back({ curX - 1, curY - 1 });
+                if (IsWithinGrid(curX + 1) && IsWithinGrid(curY - 1))
+                    if (!grid[(curY - 1) * BOARD_LENGTH + (curX + 1)]) // up left is empty
+                        piece->PossibleMoves.push_back({ curX + 1, curY - 1 });
+            }
+        }
+    }
 }
 
 std::shared_ptr<my::Piece> IsValidJump(int x, int y, std::shared_ptr<my::Piece> heldPiece)
@@ -545,6 +578,26 @@ void DebugDrawJumps(std::vector<std::shared_ptr<my::Piece>>& pieces, std::vector
                 circle->setOutlineThickness(5.0f);
                 circle->setFillColor(sf::Color::Transparent);
                 circle->setPosition(pt.landX * SPRITE_LENGTH * SCALE, pt.landY * SPRITE_LENGTH * SCALE);
+                shapes.push_back(std::move(circle));
+            }
+        }
+    }
+}
+
+void DebugDrawMoves(std::vector<std::shared_ptr<my::Piece>>& pieces, std::vector<std::unique_ptr<sf::CircleShape>>& shapes, my::Colour side)
+{
+    for (auto& piece : pieces)
+    {
+        if (piece->PossibleMoves.size() > 0 && piece->Side == side)
+        {
+            for (auto pm : piece->PossibleMoves)
+            {
+                std::unique_ptr<sf::CircleShape> circle = std::make_unique<sf::CircleShape>();
+                circle->setRadius(SPRITE_LENGTH / 2 * SCALE);
+                circle->setOutlineColor(sf::Color::Blue);
+                circle->setOutlineThickness(5.0f);
+                circle->setFillColor(sf::Color::Transparent);
+                circle->setPosition(pm.x * SPRITE_LENGTH * SCALE, pm.y * SPRITE_LENGTH * SCALE);
                 shapes.push_back(std::move(circle));
             }
         }

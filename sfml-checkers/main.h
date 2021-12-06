@@ -20,11 +20,11 @@ void RenderSprites(std::vector<std::unique_ptr<sf::Sprite>>& sprites, sf::Render
 
 void RenderText(std::vector<std::shared_ptr<sf::Text>>& text, sf::RenderWindow& window);
 
-bool CheckPos(bool* grid, int x, int y, my::Piece* heldPiece, sf::Vector2i* prevPosition);
+void ClearMoves(std::vector<std::shared_ptr<my::Piece>> pieces);
 
-bool IsInvalidRedMove(sf::Vector2i* prevPosition, int x, int y);
+bool IsValidMove(std::shared_ptr<my::Piece> heldPiece, int x, int y);
 
-bool IsInvalidBlackMove(sf::Vector2i* prevPosition, int x, int y);
+void GenerateMoves(std::vector<std::shared_ptr<my::Piece>> pieces, bool* grid);
 
 std::shared_ptr<my::Piece> IsValidJump(int x, int y, std::shared_ptr<my::Piece> heldPiece);
 
@@ -53,6 +53,8 @@ void DebugGrid(std::vector<std::shared_ptr<sf::CircleShape>>& shapes, bool* grid
 void DebugClickOnGrid(std::vector<std::shared_ptr<sf::CircleShape>>& shapes, bool* grid, int x, int y);
 
 void DebugDrawJumps(std::vector<std::shared_ptr<my::Piece>>& pieces, std::vector<std::unique_ptr<sf::CircleShape>>& shapes);
+
+void DebugDrawMoves(std::vector<std::shared_ptr<my::Piece>>& pieces, std::vector<std::unique_ptr<sf::CircleShape>>& shapes, my::Colour side);
 
 void DrawDebugShapes(std::vector<std::unique_ptr<sf::CircleShape>>& shapes, sf::RenderWindow& window);
 

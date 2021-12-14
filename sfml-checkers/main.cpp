@@ -710,24 +710,27 @@ int main()
                     {
                         case my::ButtonEvent::RESIGN:
                         {
-                            if ((int)turn) // black resign
-                                GameWon(my::Colour::RED, text[2], gameOver);
-                            else
-                                GameWon(my::Colour::BLACK, text[2], gameOver);
+                            if (!gameOver)
+                            {
+                                if ((int)turn) // black resign
+                                    GameWon(my::Colour::RED, text[2], gameOver);
+                                else
+                                    GameWon(my::Colour::BLACK, text[2], gameOver);
 
-                            std::shared_ptr<sf::Sprite> sprite = std::make_shared<sf::Sprite>(*textureHolder.resignButtonTexture);
-                            sprite->setPosition(BOARD_LENGTH* SPRITE_LENGTH* SCALE * 1.155 - sprite->getGlobalBounds().width / 2, 5 * SPRITE_LENGTH * SCALE);
-                            sprite->setScale(SCALE, SCALE);
-                            uiSprites.push_back(sprite);
-                            std::shared_ptr<my::Button> restartButton = std::make_shared<my::Button>(sprite, my::ButtonEvent::RESTART);
-                            buttons.push_back(restartButton);
+                                std::shared_ptr<sf::Sprite> sprite = std::make_shared<sf::Sprite>(*textureHolder.resignButtonTexture);
+                                sprite->setPosition(BOARD_LENGTH* SPRITE_LENGTH* SCALE * 1.155 - sprite->getGlobalBounds().width / 2, 5 * SPRITE_LENGTH * SCALE);
+                                sprite->setScale(SCALE, SCALE);
+                                uiSprites.push_back(sprite);
+                                std::shared_ptr<my::Button> restartButton = std::make_shared<my::Button>(sprite, my::ButtonEvent::RESTART);
+                                buttons.push_back(restartButton);
 
-                            std::shared_ptr<sf::Text> txt = std::make_shared<sf::Text>("RESTART", font);
-                            txt->setCharacterSize(28);
-                            txt->setStyle(sf::Text::Bold);
-                            txt->setFillColor(sf::Color::Red);
-                            txt->setPosition(BOARD_LENGTH* SPRITE_LENGTH* SCALE * 1.25 - txt->getGlobalBounds().width / 2, 5 * SPRITE_LENGTH * SCALE + txt->getGlobalBounds().height * 0.8); // center in the ui 5 squares down from the top
-                            text.push_back(txt);
+                                std::shared_ptr<sf::Text> txt = std::make_shared<sf::Text>("RESTART", font);
+                                txt->setCharacterSize(28);
+                                txt->setStyle(sf::Text::Bold);
+                                txt->setFillColor(sf::Color::Red);
+                                txt->setPosition(BOARD_LENGTH* SPRITE_LENGTH* SCALE * 1.25 - txt->getGlobalBounds().width / 2, 5 * SPRITE_LENGTH * SCALE + txt->getGlobalBounds().height * 0.8); // center in the ui 5 squares down from the top
+                                text.push_back(txt);
+                            }
                         }break;
                         case my::ButtonEvent::RESTART:
                         {
@@ -768,6 +771,7 @@ int main()
                             return 0;
                         }
                     }
+                    buttonEvent = my::ButtonEvent::NONE;
                 }
             }
             window.clear();

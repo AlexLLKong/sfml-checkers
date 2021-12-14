@@ -432,7 +432,7 @@ void GameDrawn(std::shared_ptr<sf::Text> winText, bool& gameOver)
     gameOver = true;
 }
 
-void CheckForWin(std::vector<std::shared_ptr<my::Piece>>& pieces, std::shared_ptr<sf::Text> winText, bool& gameOver)
+bool CheckForWin(std::vector<std::shared_ptr<my::Piece>>& pieces, std::shared_ptr<sf::Text> winText, bool& gameOver)
 {
     int redCount = 0;
     int blackCount = 0;
@@ -454,11 +454,21 @@ void CheckForWin(std::vector<std::shared_ptr<my::Piece>>& pieces, std::shared_pt
         }
     }
     if (redHasMovesOrTakes == 0 && blackHasMovesOrTakes == 0)
+    {
         GameDrawn(winText, gameOver);
+        return true;
+    }
     else if (redCount == 0 || redHasMovesOrTakes == 0)
+    {
         GameWon(my::Colour::BLACK, winText, gameOver);
+        return true;
+    }
     else if (blackCount == 0 || blackHasMovesOrTakes == 0)
+    {
         GameWon(my::Colour::RED, winText, gameOver);
+        return true;
+    }
+    return false;
 }
 
 void CreateRestartButton(std::vector<std::shared_ptr<sf::Sprite>>& uiSprites, 
@@ -467,9 +477,19 @@ void CreateRestartButton(std::vector<std::shared_ptr<sf::Sprite>>& uiSprites,
                          std::vector<std::shared_ptr<sf::Text>>& text, 
                          sf::Font& font)
 {
-    
+    std::shared_ptr<sf::Sprite> sprite = std::make_shared<sf::Sprite>(*textureHolder.resignButtonTexture);
+    sprite->setPosition(BOARD_LENGTH * SPRITE_LENGTH * SCALE * 1.155 - sprite->getGlobalBounds().width / 2, 5 * SPRITE_LENGTH * SCALE);
+    sprite->setScale(SCALE, SCALE);
+    uiSprites.push_back(sprite);
+    std::shared_ptr<my::Button> restartButton = std::make_shared<my::Button>(sprite, my::ButtonEvent::RESTART);
+    buttons.push_back(restartButton);
 
-
+    std::shared_ptr<sf::Text> txt = std::make_shared<sf::Text>("RESTART", font);
+    txt->setCharacterSize(28);
+    txt->setStyle(sf::Text::Bold);
+    txt->setFillColor(sf::Color::Red);
+    txt->setPosition(BOARD_LENGTH * SPRITE_LENGTH * SCALE * 1.25 - txt->getGlobalBounds().width / 2, 5 * SPRITE_LENGTH * SCALE + txt->getGlobalBounds().height * 0.8); // center in the ui 5 squares down from the top
+    text.push_back(txt);
 }
 
 // DEBUG FUNCTIONS
@@ -659,7 +679,10 @@ int main()
                         {
                             GenerateJumps(grid, pieces, heldPiece->Side); // generate jumps for next turn
                             GenerateMoves(pieces, grid); // generate moves for next turn
-                            CheckForWin(pieces, text[2], gameOver);
+                            if(CheckForWin(pieces, text[2], gameOver))
+                            {
+                                CreateRestartButton(uiSprites, buttons, textureHolder, text, font);
+                            }
                             ToggleTurnUI(uiSprites, textureHolder, turn);
                             turn = (int)turn ? my::Colour::RED : my::Colour::BLACK;
                         }
@@ -688,7 +711,10 @@ int main()
                         CheckAndMakeKing(gridY, heldPiece, textureHolder);
                         GenerateJumps(grid, pieces, heldPiece->Side); // generate jumps for next turn
                         GenerateMoves(pieces, grid); // generate moves for next turn
-                        CheckForWin(pieces, text[2], gameOver);
+                        if (CheckForWin(pieces, text[2], gameOver))
+                        {
+                            CreateRestartButton(uiSprites, buttons, textureHolder, text, font);
+                        }
                         // change the turn
                         ToggleTurnUI(uiSprites, textureHolder, turn);
                         turn = (int)turn ? my::Colour::RED : my::Colour::BLACK;
@@ -717,19 +743,7 @@ int main()
                                 else
                                     GameWon(my::Colour::BLACK, text[2], gameOver);
 
-                                std::shared_ptr<sf::Sprite> sprite = std::make_shared<sf::Sprite>(*textureHolder.resignButtonTexture);
-                                sprite->setPosition(BOARD_LENGTH* SPRITE_LENGTH* SCALE * 1.155 - sprite->getGlobalBounds().width / 2, 5 * SPRITE_LENGTH * SCALE);
-                                sprite->setScale(SCALE, SCALE);
-                                uiSprites.push_back(sprite);
-                                std::shared_ptr<my::Button> restartButton = std::make_shared<my::Button>(sprite, my::ButtonEvent::RESTART);
-                                buttons.push_back(restartButton);
-
-                                std::shared_ptr<sf::Text> txt = std::make_shared<sf::Text>("RESTART", font);
-                                txt->setCharacterSize(28);
-                                txt->setStyle(sf::Text::Bold);
-                                txt->setFillColor(sf::Color::Red);
-                                txt->setPosition(BOARD_LENGTH* SPRITE_LENGTH* SCALE * 1.25 - txt->getGlobalBounds().width / 2, 5 * SPRITE_LENGTH * SCALE + txt->getGlobalBounds().height * 0.8); // center in the ui 5 squares down from the top
-                                text.push_back(txt);
+                                CreateRestartButton(uiSprites, buttons, textureHolder, text, font);
                             }
                         }break;
                         case my::ButtonEvent::RESTART:

@@ -1,10 +1,11 @@
 #pragma once
 #include "SFML/Graphics.hpp"
 #include "piece.h"
+#include "button.h"
 #include "textures.h"
 void CreateBoard(std::vector<std::unique_ptr<sf::Sprite>>& sprites, my::TextureHolder& textureHolder);
 
-void CreateUI(std::vector<std::shared_ptr<sf::Sprite>>& sprites, my::TextureHolder& textureHolder);
+void CreateUI(std::vector<std::shared_ptr<sf::Sprite>>& sprites, std::vector<std::shared_ptr<my::Button>>& buttons, my::TextureHolder& textureHolder);
 
 void CreatePieces(std::vector<std::shared_ptr<my::Piece>>& pieces, my::TextureHolder& textureHolder, bool* grid, std::vector<std::shared_ptr<sf::Sprite>>& sprites);
 
@@ -42,11 +43,11 @@ void GenerateJump(bool* grid, my::Piece* heldPiece, std::vector<std::shared_ptr<
 
 void CheckAndMakeKing(int y, std::shared_ptr<my::Piece> heldPiece, my::TextureHolder& textureHolder);
 
-void CheckForWin(std::vector<std::shared_ptr<my::Piece>>& pieces, std::shared_ptr<sf::Text> winText);
+void CheckForWin(std::vector<std::shared_ptr<my::Piece>>& pieces, std::shared_ptr<sf::Text> winText, bool& gameOver);
 
-void GameWon(my::Colour side, std::shared_ptr<sf::Text> winText);
+void GameWon(my::Colour side, std::shared_ptr<sf::Text> winText, bool& gameOver);
 
-void GameDrawn(std::shared_ptr<sf::Text> winText);
+void GameDrawn(std::shared_ptr<sf::Text> winText, bool& gameOver);
 
 // DEBUG FUNCTIONS
 
@@ -69,3 +70,7 @@ bool IsWithinGrid(int n);
 bool IsSquareOccupied(int x, int y, bool* grid);
 
 std::shared_ptr<my::Piece> GetPieceAtPosition(int x, int y, std::vector<std::shared_ptr<my::Piece>>& pieces);
+
+void CheckButtonClick(int x, int y, std::vector<std::shared_ptr<my::Button>>& buttons);
+
+void PerformButtonClick(int x, int y, std::vector<std::shared_ptr<my::Button>>& buttons, my::ButtonEvent& buttonEvent);

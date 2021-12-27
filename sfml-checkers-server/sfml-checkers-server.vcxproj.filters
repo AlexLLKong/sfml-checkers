@@ -15,24 +15,12 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="main.cpp">
+    <ClCompile Include="..\sfml-checkers\server.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="main.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="piece.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="textures.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="button.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="netcode.h">
+    <ClInclude Include="..\sfml-checkers\netcode.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

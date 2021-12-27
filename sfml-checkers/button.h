@@ -5,7 +5,9 @@ namespace my {
 	enum class ButtonEvent {
 		NONE,
 		RESIGN,
-		RESTART
+		RESTART,
+		ONLINE,
+		OFFLINE
 	};
 
 	struct Button {

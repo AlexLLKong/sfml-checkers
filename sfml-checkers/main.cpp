@@ -1,8 +1,11 @@
 
 #include "SFML/Graphics.hpp"
+#include "SFML/Network.hpp"
 #include "piece.h"
 #include "button.h"
 #include "textures.h"
+#include "netcode.h"
+#include <iostream>
 const int BOARD_LENGTH = 8;
 const int SPRITE_LENGTH = 16;
 const float SCALE = 4.0f;
@@ -58,7 +61,21 @@ void PerformButtonClick(int x, int y, std::vector<std::shared_ptr<my::Button>>& 
     }
 }
 
-void CreatePieces(std::vector<std::shared_ptr<my::Piece>>& pieces, my::TextureHolder& textureHolder, bool* grid, std::vector<std::shared_ptr<sf::Sprite>>& sprites)
+sf::Int64 ConvertGridInt64(bool* grid)
+{
+    sf::Int64 ret;
+    for (int i = 0; i < BOARD_LENGTH * BOARD_LENGTH; i++)
+    {
+        if (grid[i])
+        {
+            ret |= 1 << i;
+        }
+    }
+    return ret;
+}
+
+void CreatePieces(std::vector<std::shared_ptr<my::Piece>>& pieces, my::TextureHolder& textureHolder, 
+                  bool* grid, std::vector<std::shared_ptr<sf::Sprite>>& sprites)
 {
     int z = 0;
     for (int i = 0; i < BOARD_LENGTH; i++)
@@ -158,7 +175,8 @@ void CreateText(std::vector<std::shared_ptr<sf::Text>>& text, sf::Font& font)
     txt->setCharacterSize(28);
     txt->setStyle(sf::Text::Bold);
     txt->setFillColor(sf::Color::Red);
-    txt->setPosition(BOARD_LENGTH * SPRITE_LENGTH * SCALE * 1.25 - txt->getGlobalBounds().width / 2, 4 * SPRITE_LENGTH * SCALE + txt->getGlobalBounds().height * 0.8); // center in the ui 4 squares down from the top
+    txt->setPosition(BOARD_LENGTH * SPRITE_LENGTH * SCALE * 1.25 - txt->getGlobalBounds().width / 2, 
+                     4 * SPRITE_LENGTH * SCALE + txt->getGlobalBounds().height * 0.8); // center in the ui 4 squares down from the top
     text.push_back(txt);
 
     txt = std::make_shared<sf::Text>("", font);
@@ -317,7 +335,8 @@ void ClearJumps(std::vector<std::shared_ptr<my::Piece>>& pieces)
     }
 }
 
-void GenerateJump(bool* grid, my::Piece* heldPiece, std::vector<std::shared_ptr<my::Piece>>& pieces, int testTakeX, int testTakeY, int testLandX, int testLandY)
+void GenerateJump(bool* grid, my::Piece* heldPiece, std::vector<std::shared_ptr<my::Piece>>& pieces, 
+                  int testTakeX, int testTakeY, int testLandX, int testLandY)
 {
     // make sure not landing off board
     if (!IsWithinGrid(testLandX) || !IsWithinGrid(testLandY)) return;
@@ -395,18 +414,21 @@ void GenerateJumps(bool* grid, std::vector<std::shared_ptr<my::Piece>>& pieces, 
     }
 }
 
-void CheckAndMakeKing(int y, std::shared_ptr<my::Piece> heldPiece, my::TextureHolder& textureHolder)
+bool CheckAndMakeKing(int y, std::shared_ptr<my::Piece> heldPiece, my::TextureHolder& textureHolder)
 {
     if (heldPiece->Side == my::Colour::RED && y == BOARD_LENGTH - 1)
     {
         heldPiece->isKing = true;
         heldPiece->Sprite->setTexture(*textureHolder.redKingPieceTexture);
+        return true;
     }
     else if (heldPiece->Side == my::Colour::BLACK && y == 0)
     {
         heldPiece->isKing = true;
         heldPiece->Sprite->setTexture(*textureHolder.blackKingPieceTexture);
+        return true;
     }
+    return false;
 }
 
 void GameWon(my::Colour side, std::shared_ptr<sf::Text> winText, bool& gameOver)
@@ -470,7 +492,34 @@ bool CheckForWin(std::vector<std::shared_ptr<my::Piece>>& pieces, std::shared_pt
     }
     return false;
 }
+void DeleteButton(std::vector<std::shared_ptr<sf::Sprite>>& uiSprites,
+                  std::vector<std::shared_ptr<my::Button>>& buttons,
+                  my::ButtonEvent btnEvent)
+{
+    std::shared_ptr<my::Button> tempBtn;
+    for (auto& btn : buttons)
+    {
+        if (btn->BtnEvent == btnEvent)
+        {
+            tempBtn = btn;
+        }
+    }
+    uiSprites.erase(std::remove(uiSprites.begin(), uiSprites.end(), tempBtn->Sprite));
+    buttons.erase(std::remove(buttons.begin(), buttons.end(), tempBtn));
+}
 
+void DeleteText(std::vector<std::shared_ptr<sf::Text>>& text, std::string s)
+{
+    std::shared_ptr<sf::Text> tempTxt;
+    for (auto& txt : text)
+    {
+        if (txt->getString() == s)
+        {
+            tempTxt = txt;
+        }
+    }
+    text.erase(std::remove(text.begin(), text.end(), tempTxt));
+}
 void CreateRestartButton(std::vector<std::shared_ptr<sf::Sprite>>& uiSprites, 
                          std::vector<std::shared_ptr<my::Button>>& buttons, 
                          my::TextureHolder& textureHolder, 
@@ -488,7 +537,45 @@ void CreateRestartButton(std::vector<std::shared_ptr<sf::Sprite>>& uiSprites,
     txt->setCharacterSize(28);
     txt->setStyle(sf::Text::Bold);
     txt->setFillColor(sf::Color::Red);
-    txt->setPosition(BOARD_LENGTH * SPRITE_LENGTH * SCALE * 1.25 - txt->getGlobalBounds().width / 2, 5 * SPRITE_LENGTH * SCALE + txt->getGlobalBounds().height * 0.8); // center in the ui 5 squares down from the top
+    txt->setPosition(BOARD_LENGTH * SPRITE_LENGTH * SCALE * 1.25 - txt->getGlobalBounds().width / 2, 
+                     5 * SPRITE_LENGTH * SCALE + txt->getGlobalBounds().height * 0.8); // center in the ui 5 squares down from the top
+    text.push_back(txt);
+}
+
+void CreateOfflineOnlineButtons(std::vector<std::shared_ptr<sf::Sprite>>& uiSprites,
+                                std::vector<std::shared_ptr<my::Button>>& buttons,
+                                my::TextureHolder& textureHolder,
+                                std::vector<std::shared_ptr<sf::Text>>& text,
+                                sf::Font& font)
+{
+    std::shared_ptr<sf::Sprite> sprite = std::make_shared<sf::Sprite>(*textureHolder.resignButtonTexture);
+    sprite->setPosition(BOARD_LENGTH * SPRITE_LENGTH * SCALE * 0.25 - sprite->getGlobalBounds().width * 2, 4 * SPRITE_LENGTH * SCALE);
+    sprite->setScale(SCALE, SCALE);
+    uiSprites.push_back(sprite);
+    std::shared_ptr<my::Button> offlineButton = std::make_shared<my::Button>(sprite, my::ButtonEvent::OFFLINE);
+    buttons.push_back(offlineButton);
+
+    std::shared_ptr<sf::Text> txt = std::make_shared<sf::Text>("OFFLINE", font);
+    txt->setCharacterSize(28);
+    txt->setStyle(sf::Text::Bold);
+    txt->setFillColor(sf::Color::Red);
+    txt->setPosition(BOARD_LENGTH * SPRITE_LENGTH * SCALE * 0.25 - txt->getGlobalBounds().width / 2, 
+                     4 * SPRITE_LENGTH * SCALE + txt->getGlobalBounds().height * 0.8); // center in the ui 5 squares down from the top
+    text.push_back(txt);
+
+    sprite = std::make_shared<sf::Sprite>(*textureHolder.resignButtonTexture);
+    sprite->setPosition(BOARD_LENGTH * SPRITE_LENGTH * SCALE * 0.75 - sprite->getGlobalBounds().width * 2, 4 * SPRITE_LENGTH * SCALE);
+    sprite->setScale(SCALE, SCALE);
+    uiSprites.push_back(sprite);
+    std::shared_ptr<my::Button> onlineButton = std::make_shared<my::Button>(sprite, my::ButtonEvent::ONLINE);
+    buttons.push_back(onlineButton);
+
+    txt = std::make_shared<sf::Text>("ONLINE", font);
+    txt->setCharacterSize(28);
+    txt->setStyle(sf::Text::Bold);
+    txt->setFillColor(sf::Color::Red);
+    txt->setPosition(BOARD_LENGTH * SPRITE_LENGTH * SCALE * 0.75 - txt->getGlobalBounds().width / 2, 
+                     4 * SPRITE_LENGTH * SCALE + txt->getGlobalBounds().height * 0.8); // center in the ui 5 squares down from the top
     text.push_back(txt);
 }
 
@@ -573,14 +660,23 @@ void DrawDebugShapes(std::vector<std::unique_ptr<sf::CircleShape>>& shapes, sf::
 
 int main()
 {
-    sf::RenderWindow window(sf::VideoMode(BOARD_LENGTH * SPRITE_LENGTH * SCALE + GUI_WIDTH, BOARD_LENGTH * SPRITE_LENGTH * SCALE), "sfml-checkers", sf::Style::Close);
-
+    sf::RenderWindow window(sf::VideoMode(BOARD_LENGTH * SPRITE_LENGTH * SCALE + GUI_WIDTH, BOARD_LENGTH * SPRITE_LENGTH * SCALE), 
+                            "sfml-checkers", sf::Style::Close);
+    
     // init textures
     my::TextureHolder textureHolder;
-    if (!textureHolder.allTexturesLoaded) return 0;
+    if (!textureHolder.allTexturesLoaded)
+    {
+        std::cout << "There was a problem loading one or more textures" << "\n";
+        return 1;
+    }
     // init font
     sf::Font font;
-    if (!font.loadFromFile("font/upheavtt.ttf")) return 0;
+    if (!font.loadFromFile("font/upheavtt.ttf"))
+    {
+        std::cout << "There was a problem loading one or more fonts" << "\n";
+        return 1;
+    }
 
     // setup grid tracker
     bool grid[BOARD_LENGTH * BOARD_LENGTH] = {false};
@@ -606,11 +702,26 @@ int main()
 
     my::ButtonEvent buttonEvent = my::ButtonEvent::NONE;
     bool gameOver = false;
+    bool startMenu = true;
+    bool askRoomID = false;
+    bool waitingForOpponent = false;
+    bool networkGame = false;
+    bool opponentRestarted = false;
+    bool alreadyRestarted = false;
+    bool opponentResigned = false;
+    std::string roomID = "";
+    my::Colour onlinePlayer;
+    sf::Int8 jumpsThisTurn = 0;
+    sf::Int8 originalJumpGridPos = 0;
+    std::vector<sf::Int8> piecesTaken;
+    bool madeKingThisTurn = false;
     // generate moves
     GenerateMoves(pieces, grid);
-
+    CreateOfflineOnlineButtons(uiSprites, buttons, textureHolder, text, font);
     std::shared_ptr<my::Piece> heldPiece = nullptr;
     std::unique_ptr<sf::Vector2i> prevPosition = std::make_unique<sf::Vector2i>(0, 0);
+
+    sf::TcpSocket socket;
     while (window.isOpen())
     {
         sf::Event event;
@@ -624,7 +735,7 @@ int main()
                 {
                     int x = event.mouseButton.x;
                     int y = event.mouseButton.y;
-                    if (!gameOver)
+                    if (!gameOver && !startMenu)
                     {
                         int gridX = ToGridCoordinate(x);
                         int gridY = ToGridCoordinate(y);
@@ -632,7 +743,7 @@ int main()
                         prevPosition->y = gridY * SPRITE_LENGTH * SCALE;
                         heldPiece = GetHeldPiece(pieces, grid, gridX, gridY); 
                         if (heldPiece != nullptr) {
-                            if(heldPiece->Side != turn)  
+                            if((heldPiece->Side != turn) || (networkGame && onlinePlayer != heldPiece->Side))  
                                 heldPiece = nullptr;
                         }
                     }
@@ -661,18 +772,25 @@ int main()
                     {
                         heldPiece->Sprite->setPosition(gridX * SPRITE_LENGTH * SCALE, gridY * SPRITE_LENGTH * SCALE);
                         grid[gridY * BOARD_LENGTH + gridX] = true;
-                        grid[ToGridCoordinate(prevPosition->y) * BOARD_LENGTH + ToGridCoordinate(prevPosition->x)] = false;
+                        sf::Int8 prevGridPos = ToGridCoordinate(prevPosition->y) * BOARD_LENGTH + ToGridCoordinate(prevPosition->x);
+                        grid[prevGridPos] = false;
                         prevPosition->x = 0;
                         prevPosition->y = 0;
-                        
+                        if (jumpsThisTurn == 0)
+                        {
+                            originalJumpGridPos = prevGridPos;
+                        }
+                        sf::Int8 pieceToTakeGridPos = ToGridCoordinate(pieceToTake->Sprite->getPosition().y) * BOARD_LENGTH +
+                                                      ToGridCoordinate(pieceToTake->Sprite->getPosition().x);
+                        // for network game purposes
+                        piecesTaken.push_back(pieceToTakeGridPos);
                         // remove pieceToTake from pieces
-                        grid[ToGridCoordinate(pieceToTake->Sprite->getPosition().y) * BOARD_LENGTH + 
-                             ToGridCoordinate(pieceToTake->Sprite->getPosition().x)] = false;
+                        grid[pieceToTakeGridPos] = false;
                         pieceSprites.erase(std::remove(pieceSprites.begin(), pieceSprites.end(), pieceToTake->Sprite));
                         pieces.erase(std::remove(pieces.begin(), pieces.end(), pieceToTake));
                         shapes.clear();
-                        // TODO: check and make king here!
-                        CheckAndMakeKing(gridY, heldPiece, textureHolder);
+                        jumpsThisTurn++;
+                        madeKingThisTurn = CheckAndMakeKing(gridY, heldPiece, textureHolder);
                         GenerateJumps(grid, pieces, heldPiece->Side == my::Colour::BLACK ? my::Colour::RED : my::Colour::BLACK); // still jumps to make?
                         // change the turn if there are no more jumps
                         if (!AreAnyJumps(pieces))
@@ -685,6 +803,27 @@ int main()
                             }
                             ToggleTurnUI(uiSprites, textureHolder, turn);
                             turn = (int)turn ? my::Colour::RED : my::Colour::BLACK;
+                            if (networkGame)
+                            {
+                                sf::Packet sendPacket;
+                                sf::Int8 netcode = (sf::Int8)my::Netcode::PLAYERMOVE;
+                                sf::Int8 gridSource = originalJumpGridPos;
+                                sf::Int8 gridDestination = gridY * BOARD_LENGTH + gridX;
+                                sf::Int8 numTaken = jumpsThisTurn; 
+                                char taken[12]; // ASSUMPTION: no more than 12 pieces could be taken in a turn
+                                for (int i = 0; i < numTaken; i++)
+                                {
+                                    taken[i] = piecesTaken[i];
+                                }
+                                bool madeKing = madeKingThisTurn;
+                                sendPacket << netcode << gridSource << gridDestination << numTaken << taken << madeKing;
+                                socket.send(sendPacket);
+                                waitingForOpponent = true;
+                            }
+                            jumpsThisTurn = 0;
+                            originalJumpGridPos = 0;
+                            piecesTaken.clear();
+                            madeKingThisTurn = false;
                         }
                     }
                     else // attempted move was not one of the jumps and therefore is cancelled
@@ -704,11 +843,11 @@ int main()
                     {
                         heldPiece->Sprite->setPosition(gridX * SPRITE_LENGTH * SCALE, gridY * SPRITE_LENGTH * SCALE);
                         grid[gridY * BOARD_LENGTH + gridX] = true;
-                        grid[ToGridCoordinate(prevPosition->y) * BOARD_LENGTH + ToGridCoordinate(prevPosition->x)] = false;
+                        sf::Int8 prevGridPos = ToGridCoordinate(prevPosition->y) * BOARD_LENGTH + ToGridCoordinate(prevPosition->x);
+                        grid[prevGridPos] = false;
                         prevPosition->x = 0;
                         prevPosition->y = 0;
-                        // TODO: check and make king here!
-                        CheckAndMakeKing(gridY, heldPiece, textureHolder);
+                        madeKingThisTurn = CheckAndMakeKing(gridY, heldPiece, textureHolder);
                         GenerateJumps(grid, pieces, heldPiece->Side); // generate jumps for next turn
                         GenerateMoves(pieces, grid); // generate moves for next turn
                         if (CheckForWin(pieces, text[2], gameOver))
@@ -718,6 +857,19 @@ int main()
                         // change the turn
                         ToggleTurnUI(uiSprites, textureHolder, turn);
                         turn = (int)turn ? my::Colour::RED : my::Colour::BLACK;
+                        if (networkGame)
+                        {
+                            sf::Packet sendPacket;
+                            sf::Int8 netcode = (sf::Int8)my::Netcode::PLAYERMOVE;
+                            sf::Int8 gridSource = prevGridPos;
+                            sf::Int8 gridDestination = gridY * BOARD_LENGTH + gridX;
+                            sf::Int8 numTaken = -1;
+                            char taken[12];
+                            bool madeKing = madeKingThisTurn;
+                            sendPacket << netcode << gridSource << gridDestination << numTaken << taken << madeKing;
+                            socket.send(sendPacket);
+                            waitingForOpponent = true;
+                        }
                         shapes.clear();
                     }
                     heldPiece = nullptr;
@@ -736,7 +888,7 @@ int main()
                     {
                         case my::ButtonEvent::RESIGN:
                         {
-                            if (!gameOver)
+                            if (!gameOver && !startMenu && (!networkGame || onlinePlayer == turn)) 
                             {
                                 if ((int)turn) // black resign
                                     GameWon(my::Colour::RED, text[2], gameOver);
@@ -744,6 +896,14 @@ int main()
                                     GameWon(my::Colour::BLACK, text[2], gameOver);
 
                                 CreateRestartButton(uiSprites, buttons, textureHolder, text, font);
+                                if (networkGame)
+                                {
+                                    sf::Packet sendPacket;
+                                    sf::Int8 netcode = (sf::Int8)my::Netcode::RESIGN;
+                                    sendPacket << netcode;
+                                    socket.send(sendPacket);
+                                    startMenu = true;
+                                }
                             }
                         }break;
                         case my::ButtonEvent::RESTART:
@@ -756,29 +916,62 @@ int main()
                                 grid[i] = false;
                             }
                             CreatePieces(pieces, textureHolder, grid, pieceSprites);
-                            turn = my::Colour::BLACK;
                             gameOver = false;
                             text[2]->setString("");
-                            std::shared_ptr<my::Button> restartButton;
-                            for (auto& btn : buttons)
-                            {
-                                if (btn->BtnEvent == my::ButtonEvent::RESTART)
-                                {
-                                    restartButton = btn;
-                                }
-                            }
-                            uiSprites.erase(std::remove(uiSprites.begin(), uiSprites.end(), restartButton->Sprite));
-                            buttons.erase(std::remove(buttons.begin(), buttons.end(), restartButton));
-                            std::shared_ptr<sf::Text> restartTxt;
-                            for (auto& txt : text)
-                            {
-                                if (txt->getString() == "RESTART")
-                                {
-                                    restartTxt = txt;
-                                }
-                            }
-                            text.erase(std::remove(text.begin(), text.end(), restartTxt));
+                            DeleteButton(uiSprites, buttons, my::ButtonEvent::RESTART);
+                            DeleteText(text, "RESTART");
                             GenerateMoves(pieces, grid);
+                            if (turn == my::Colour::RED)
+                            {
+                                ToggleTurnUI(uiSprites, textureHolder, turn);
+                                turn = my::Colour::BLACK;
+                            }
+                            if (networkGame)
+                            {
+                                //text[3]->setString("Waiting for other player");
+                                sf::Packet sendPacket;
+                                sf::Int8 netcode = (sf::Int8)my::Netcode::RESTART;
+                                sendPacket << netcode;
+                                socket.send(sendPacket);
+                                alreadyRestarted = true;
+                                if(opponentRestarted)
+                                {
+                                    alreadyRestarted = false;
+                                    opponentRestarted = false;
+                                    startMenu = false;
+                                }
+                            }
+                        }break;
+                        case my::ButtonEvent::OFFLINE:
+                        {
+                            DeleteButton(uiSprites, buttons, my::ButtonEvent::OFFLINE);
+                            DeleteText(text, "OFFLINE");
+                            DeleteButton(uiSprites, buttons, my::ButtonEvent::ONLINE);
+                            DeleteText(text, "ONLINE");
+                            startMenu = false;
+                        }break;
+                        case my::ButtonEvent::ONLINE:
+                        {
+                            DeleteButton(uiSprites, buttons, my::ButtonEvent::OFFLINE);
+                            DeleteText(text, "OFFLINE");
+                            DeleteButton(uiSprites, buttons, my::ButtonEvent::ONLINE);
+                            DeleteText(text, "ONLINE");
+                            askRoomID = true;
+                            std::shared_ptr<sf::Text> roomIDLabel = std::make_shared<sf::Text>("ROOM ID: (ctrl+v->Enter)", font);
+                            roomIDLabel->setCharacterSize(28);
+                            roomIDLabel->setStyle(sf::Text::Bold);
+                            roomIDLabel->setFillColor(sf::Color::Red);
+                            roomIDLabel->setPosition(BOARD_LENGTH* SPRITE_LENGTH* SCALE * 0.5 - roomIDLabel->getGlobalBounds().width / 2,
+                                                     3 * SPRITE_LENGTH * SCALE + roomIDLabel->getGlobalBounds().height * 0.8);
+                            text.push_back(roomIDLabel);
+
+                            std::shared_ptr<sf::Text> roomIDDisplay = std::make_shared<sf::Text>("", font);
+                            roomIDDisplay->setCharacterSize(28);
+                            roomIDDisplay->setStyle(sf::Text::Bold);
+                            roomIDDisplay->setFillColor(sf::Color::Red);
+                            roomIDDisplay->setPosition(BOARD_LENGTH* SPRITE_LENGTH* SCALE * 0.5 - roomIDDisplay->getGlobalBounds().width / 2, 
+                                                       4 * SPRITE_LENGTH * SCALE + roomIDDisplay->getGlobalBounds().height * 0.8);
+                            text.push_back(roomIDDisplay);
                         }break;
                         default:
                         {
@@ -786,6 +979,181 @@ int main()
                         }
                     }
                     buttonEvent = my::ButtonEvent::NONE;
+                }
+            }
+            if (event.type == sf::Event::KeyPressed)
+            {
+                if (askRoomID)
+                {
+                    if (event.key.control && event.key.code == sf::Keyboard::V)
+                    {
+                        std::string temp = sf::Clipboard::getString();
+                        if (temp.size() < 16)
+                        {
+                            roomID = temp;
+                            text[4]->setString(roomID);
+                            text[4]->setPosition(BOARD_LENGTH* SPRITE_LENGTH* SCALE * 0.5 - text[4]->getGlobalBounds().width / 2,
+                                                 4 * SPRITE_LENGTH * SCALE + text[4]->getGlobalBounds().height * 0.8);
+                        }
+                        else
+                        {
+                            text[4]->setString("room id has to be less than 16 characters");
+                            text[4]->setPosition(BOARD_LENGTH* SPRITE_LENGTH* SCALE * 0.5 - text[4]->getGlobalBounds().width / 2,
+                                4 * SPRITE_LENGTH * SCALE + text[4]->getGlobalBounds().height * 0.8);
+                        }
+                    }
+                    else if (roomID != "" && event.key.code == sf::Keyboard::Enter)
+                    {
+                        sf::Socket::Status err = socket.connect("localhost", 55001);
+                        if (err == sf::Socket::Status::Done)
+                        {
+                            // Send a message to the connected host
+                            sf::Packet packet;
+                            packet << roomID;
+                            socket.send(packet);
+                            // Receive an answer from the server
+                            sf::Packet recPacket;
+                            std::string answer;
+                            bool roomExists = false;
+                            err = socket.receive(recPacket);
+                            recPacket >> answer >> roomExists;
+                            if (err == sf::Socket::Status::Done)
+                            {
+                                std::cout << "The server said:\n" << answer << "\n";
+                                text.erase(std::remove(text.begin(), text.end(), text[4]));
+                                if (roomExists) // This is player 2
+                                {
+                                    text.erase(std::remove(text.begin(), text.end(), text[3]));
+                                    onlinePlayer = my::Colour::RED;
+                                    socket.setBlocking(false);
+                                    startMenu = false;
+                                    networkGame = true;
+                                    waitingForOpponent = true;
+                                }
+                                else
+                                {
+                                    onlinePlayer = my::Colour::BLACK;
+                                    text[3]->setString("Waiting for other player");
+                                    socket.setBlocking(false);
+                                    waitingForOpponent = true;
+                                }
+                            }
+                            else if (err == sf::Socket::Status::Error)
+                            {
+                                std::cout << "Error recieving message from server" << "\n";
+                            }
+                        }
+                        else if (err == sf::Socket::Status::Error)
+                        {
+                            std::cout << "Error connecting to the server" << "\n";
+                        }
+                    }
+                }
+            }
+            sf::Packet rec;
+            if (socket.receive(rec) == sf::Socket::Done)
+            {
+                sf::Int8 int8Netcode;
+                my::Netcode netcode;
+                sf::Int8 gridSource;
+                sf::Int8 gridDestination;
+                sf::Int8 numTaken;
+                char taken[12];
+                bool madeKing;
+
+                rec >> int8Netcode;
+                netcode = (my::Netcode)int8Netcode;
+                rec >> gridSource >> gridDestination >> numTaken >> taken >> madeKing;
+
+                if (netcode == my::Netcode::CONNECTED)
+                {
+                    text.erase(std::remove(text.begin(), text.end(), text[3]));
+                    startMenu = false;
+                    waitingForOpponent = false;
+                    networkGame = true;
+                }
+                else if (netcode == my::Netcode::RESIGN)
+                {
+                    if ((int)turn) // black resign
+                        GameWon(my::Colour::RED, text[2], gameOver);
+                    else
+                        GameWon(my::Colour::BLACK, text[2], gameOver);
+                    CreateRestartButton(uiSprites, buttons, textureHolder, text, font);
+                    //opponentResigned = true;
+                    startMenu = true;
+                }
+                else if (netcode == my::Netcode::RESTART)
+                {
+                    if (alreadyRestarted)
+                    {
+                        alreadyRestarted = false;
+                        opponentRestarted = false;
+                        startMenu = false;
+                    }
+                    else
+                    {
+                        opponentRestarted = true;
+                    }
+                }
+                else if(netcode == my::Netcode::PLAYERMOVE)
+                {
+                    // UpdateBoard()
+                    grid[gridSource] = false;
+                    grid[gridDestination] = true;
+                    // UpdatePieces()
+                    // move the moved piece to the destination
+                    int sourceX = (gridSource % BOARD_LENGTH) * SPRITE_LENGTH * SCALE;
+                    int sourceY = (gridSource / BOARD_LENGTH) * SPRITE_LENGTH * SCALE;
+                    int destX = (gridDestination % BOARD_LENGTH) * SPRITE_LENGTH * SCALE;
+                    int destY = (gridDestination / BOARD_LENGTH) * SPRITE_LENGTH * SCALE;
+                    for (auto piece : pieces)
+                    {
+                        if (piece->Sprite->getPosition().x == sourceX && piece->Sprite->getPosition().y == sourceY)
+                        {
+                            piece->Sprite->setPosition(destX, destY);
+                        }
+                    }
+                    if (numTaken > 0)
+                    {
+                        for (int i = 0; i < numTaken; i++)
+                        {
+                            int x = (taken[i] % BOARD_LENGTH) * SPRITE_LENGTH * SCALE;
+                            int y = (taken[i] / BOARD_LENGTH) * SPRITE_LENGTH * SCALE;
+                            for (auto piece: pieces)
+                            {
+                                if (piece->Sprite->getPosition().x == x && piece->Sprite->getPosition().y == y)
+                                {
+                                    grid[taken[i]] = false;
+                                    pieceSprites.erase(std::remove(pieceSprites.begin(), pieceSprites.end(), piece->Sprite));
+                                    pieces.erase(std::remove(pieces.begin(), pieces.end(), piece));
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                    if (madeKing)
+                    {
+                        for (auto piece : pieces)
+                        {
+                            if (piece->Sprite->getPosition().x == destX && piece->Sprite->getPosition().y == destY)
+                            {
+                                piece->isKing = true;
+                                piece->Sprite->setTexture(*textureHolder.redKingPieceTexture);
+                            }
+                        }
+                    }
+                    // toggle turn, generate moves etc
+                    GenerateJumps(grid, pieces, turn); // generate jumps for next turn
+                    GenerateMoves(pieces, grid); // generate moves for next turn
+                    if (CheckForWin(pieces, text[2], gameOver))
+                    {
+                        CreateRestartButton(uiSprites, buttons, textureHolder, text, font);
+                    }
+                    // change the turn
+                    ToggleTurnUI(uiSprites, textureHolder, turn);
+                    turn = (int)turn ? my::Colour::RED : my::Colour::BLACK;
+                    shapes.clear();
+                    DebugDrawJumps(pieces, shapes);
                 }
             }
             window.clear();
@@ -797,7 +1165,6 @@ int main()
             window.display();
         }
     }
-
     return 0;
 }
 

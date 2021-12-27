@@ -928,7 +928,6 @@ int main()
                             }
                             if (networkGame)
                             {
-                                //text[3]->setString("Waiting for other player");
                                 sf::Packet sendPacket;
                                 sf::Int8 netcode = (sf::Int8)my::Netcode::RESTART;
                                 sendPacket << netcode;
@@ -1079,7 +1078,6 @@ int main()
                     else
                         GameWon(my::Colour::BLACK, text[2], gameOver);
                     CreateRestartButton(uiSprites, buttons, textureHolder, text, font);
-                    //opponentResigned = true;
                     startMenu = true;
                 }
                 else if (netcode == my::Netcode::RESTART)
@@ -1097,11 +1095,9 @@ int main()
                 }
                 else if(netcode == my::Netcode::PLAYERMOVE)
                 {
-                    // UpdateBoard()
                     grid[gridSource] = false;
                     grid[gridDestination] = true;
-                    // UpdatePieces()
-                    // move the moved piece to the destination
+
                     int sourceX = (gridSource % BOARD_LENGTH) * SPRITE_LENGTH * SCALE;
                     int sourceY = (gridSource / BOARD_LENGTH) * SPRITE_LENGTH * SCALE;
                     int destX = (gridDestination % BOARD_LENGTH) * SPRITE_LENGTH * SCALE;
@@ -1142,14 +1138,14 @@ int main()
                             }
                         }
                     }
-                    // toggle turn, generate moves etc
-                    GenerateJumps(grid, pieces, turn); // generate jumps for next turn
-                    GenerateMoves(pieces, grid); // generate moves for next turn
+                    
+                    GenerateJumps(grid, pieces, turn); 
+                    GenerateMoves(pieces, grid); 
                     if (CheckForWin(pieces, text[2], gameOver))
                     {
                         CreateRestartButton(uiSprites, buttons, textureHolder, text, font);
                     }
-                    // change the turn
+                    
                     ToggleTurnUI(uiSprites, textureHolder, turn);
                     turn = (int)turn ? my::Colour::RED : my::Colour::BLACK;
                     shapes.clear();

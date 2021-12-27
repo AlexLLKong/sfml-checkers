@@ -4,15 +4,11 @@
 #include <list>
 int main() 
 {
-	// Create a listener to wait for incoming connections on port 55001
 	std::cout << "Creating listener" << "\n";
     sf::TcpListener listener;
     listener.listen(55001);
-    // Create a list to store the future clients
     std::list<std::shared_ptr<sf::TcpSocket>> clients;
-    // Create a selector
     sf::SocketSelector selector;
-    // Add the listener to the selector
     selector.add(listener);
 
     struct Room {
@@ -21,7 +17,7 @@ int main()
         std::shared_ptr<sf::TcpSocket> player2;
     };
     std::list<Room> rooms;
-    // Endless loop that waits for new connections
+
     bool running = true;
     while (running)
     {
@@ -109,13 +105,6 @@ int main()
                             std::cout << "recieved packet from client at: " << client.getRemoteAddress() << "\n";
                             // handle data
                             std::string clientIP = client.getRemoteAddress().toString();
-                            /*sf::Int8 prefix;
-                            sf::Int8 gridSource;
-                            sf::Int8 gridDestination;
-                            sf::Int8 numTaken;
-                            char taken[12];
-                            bool madeKing;
-                            packet >> prefix >> gridSource >> gridDestination >> numTaken >> taken >> madeKing;*/
                             for (Room room : rooms)
                             {
                                 // TODO: Temporary while working with localhost clients. Normally should only send to other player
@@ -125,8 +114,6 @@ int main()
                                     {
                                         if (clt2 == room.player2)
                                         {
-                                            sf::Packet p2;
-                                            //p2 << prefix << gridSource << gridDestination << numTaken << taken << madeKing;
                                             clt2->send(packet);
                                         }
                                     }
@@ -137,8 +124,6 @@ int main()
                                     {
                                         if (clt2 == room.player1)
                                         {
-                                            sf::Packet p1;
-                                            //p1 << prefix << gridSource << gridDestination << numTaken << taken << madeKing;
                                             clt2->send(packet);
                                         }
                                     }
